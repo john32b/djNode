@@ -1,0 +1,6 @@
+# OS specific files
+Thumbs.db
+tests/
+logger/
+_devnotes/
+

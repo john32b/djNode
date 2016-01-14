@@ -1,0 +1,12 @@
+{
+	"name": "djNode",
+	"description": "JohnDimi nodeJs Lib",
+	"url" : "",
+	"license": "",
+	"tags": ["nodeJs"],
+	"version": "0.1.0",
+	"classPath": "source/djNode/",
+	"releasenote": "Initial release",
+	"contributors": ["JohnDimi"],
+	"dependencies": { "hxnodejs": "" }
+}
