@@ -179,7 +179,7 @@ class BaseApp
 	{
 		LOG.log("Initializing BaseApp");
 		
-		addParam('-help', "Display Usage info", "This screen", false, false);
+		addParam('-help', "Display Usage info", "This screen", false, false, true);
 		addParam('-o',    "output", "Set the output for the app", true);
 	
 		// Format the helper text, so that they line up properly
@@ -216,7 +216,8 @@ class BaseApp
 	 * @param	requireValue (bool) if a value is expected after this // false
 	 * @param	isDefault (bool) If program will always set this to apply // false
 	 */
-	function addParam(command:String, name:String, ?description:String, ?requireValue:Bool, ?isDefault:Bool):Void
+	function addParam(command:String, name:String, ?description:String, 
+						?requireValue:Bool, ?isDefault:Bool, hidden:Bool = false):Void
 	{
 		// Safeguard, check parameter, useful only in development.
 		#if debug
@@ -238,6 +239,7 @@ class BaseApp
 			}
 			
 			p.command = command;
+			p.hidden = hidden;
 			p.name = name;
 			p.description = (description != null) ? description : "...";
 			p.description = ~/#nl/g.replace(p.description, "\n\t");
@@ -397,7 +399,7 @@ class BaseApp
 	{
 		// -- local function
 		function __printUsageParameter(par:AcceptedArgument):Void {
-			if (par.command == "-o") return;	//skip the output option
+			if (par.hidden) return;
 			t.fg(Color.white).print(' ${par.command}\t');
 			t.print(par.name).reset();
 			if (par.isdefault) t.fg(Color.yellow).print(" [default]");
@@ -612,6 +614,7 @@ class BaseApp
 class AcceptedArgument 
 {
 	public var isdefault:Bool;		// if true, then this will always apply.
+	public var hidden:Bool;			// show this param on the HELP screen
 	public var command:String;		// Text string, e,g, "-x".
 	public var name:String;			// Full name of parameter, e.g. "Extract".
 	public var type:String;			// [action,option]

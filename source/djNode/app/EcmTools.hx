@@ -70,26 +70,25 @@ class EcmTools extends AppSpawner
 	}//---------------------------------------------------;
 	//
 	// Will produce to same directory as the input file
-	public function ecm(input:String, ?outputDir:String ):Void 
+	public function ecm(input:String, ?output:String ):Void 
 	{		
-		if (outputDir != null) {
-			LOG.log("In case I need it", 3);
-			// output parameter needs to be full file, e.g. "g:\newimage.bin"
-		}
-		spawnProc(Path.join(dir_exe, exe_ecm) , [input]);
+		if (output != null)
+			spawnProc(Path.join(dir_exe, exe_ecm) , [input, output]);
+		else
+			spawnProc(Path.join(dir_exe, exe_ecm) , [input]);
+		
 		listen_progress("encode");		
 	}//---------------------------------------------------;
 	
 	// Will ALWAYS un-ECM at the same dir as the file..
-	public function unecm(input:String, ?outputDir:String):Void 
+	public function unecm(input:String, ?output:String):Void 
 	{
-		if (outputDir != null) {
-			LOG.log("In case I need it", 3);
-			// output parameter needs to be full file, e.g. "g:\newimage.bin"
-		}
-		
 		// It will just enecm at same dir for now.
-		spawnProc(Path.join(dir_exe, exe_unecm) , [input]);
+		if (output != null)
+			spawnProc(Path.join(dir_exe, exe_unecm) , [input, output]);
+		else
+			spawnProc(Path.join(dir_exe, exe_unecm) , [input]);
+			
 		listen_progress("decode");
 	}//---------------------------------------------------;
 	

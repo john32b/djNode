@@ -5,7 +5,7 @@
 	"license": "",
 	"tags": ["nodeJs"],
 	"version": "0.1.0",
-	"classPath": "source/djNode/",
+	"classPath": "source/",
 	"releasenote": "Initial release",
 	"contributors": ["JohnDimi"],
 	"dependencies": { "hxnodejs": "" }

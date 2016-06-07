@@ -114,8 +114,8 @@ class FFmpegAudio extends AppSpawner
 			for (i in outputParam) proc_params.push(i);
 			proc_params.push(output);
 			
-		LOG.log("FFMPEG PARAMS:");
-		LOG.logObj(proc_params);
+		//LOG.log("FFMPEG PARAMS:");
+		//LOG.logObj(proc_params);
 		spawnProc("ffmpeg", proc_params);
 		listen_progress();
 	}//---------------------------------------------------;
@@ -156,7 +156,7 @@ class FFmpegAudio extends AppSpawner
 		
 		// - pre
 		// - MAKE SURE FFMPEG EXISTS!
-		AppSpawner.quickExec('ffmpeg -i $input', function(s:Bool, o:String, e:String) {
+		AppSpawner.quickExec('ffmpeg -i "$input"', function(s:Bool, o:String, e:String) {
 			
 			// Warning!! ffmpeg will always exit with error for displaying info.
 			// Do not check status

@@ -125,6 +125,7 @@ class AppSpawner
 				error_log = sig;
 				error_code = "error";
 				LOG.log("Child Process Close - [ ERROR ] - " + error_log, 3);
+				trace(exit);
 				events.emit("close", false);
 			}
 			else {

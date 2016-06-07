@@ -42,12 +42,25 @@ class CDInfo
 	// VARS
 	//====================================================;
 	
+	// Current CDINFO version.
+	static var VERSION:Int = 2;
+	
 	// If loaded a descriptor file, store it's path here
 	public var loadedFile:String;
+	
+	// If True, then this CD is one file per track
+	// if False, then it's one bin file with all the tracks inside it
+	// Autoset when it reads the cue sheet.
+	public var isMultiImage(default, null):Bool;
+	
 	// Path to the actual image file
-	public var image_path:String;
-	// Size in bytes
-	public var image_size:Int;
+	public var image_path:String; /// <== DON'T DEL
+	
+	// Total tracks and files size in bytes.
+	// Autoset when parsing the CUE file
+	public var total_size(default, null):Int;
+	
+	
 	// Title of the CD
 	public var TITLE:String;
 	// Working Sector Size of the CD
@@ -60,13 +73,14 @@ class CDInfo
 	public var tracks_total:Int;
 	
 	// --- HELPERS ---
-	var openTrack:CueTrack;
+	var openFile:String;
+	var openTrack:CueTrack; 
 	// The dir holding the loaded descriptor file
 	var loadedFile_dir:String;
 	// Type
 	var loadedFile_ext:String;	//e.g. "cue","ccd"
+	
 	// Filename for single generated image files, used in the save cue procedure
-	public var imageFilename:String;
 	
 	//====================================================;
 	// FUNCTIONS
@@ -111,10 +125,10 @@ class CDInfo
 		
 		// Init Variables
 		loadedFile = input;
-		image_path = null; image_size = 0;
+		image_path = null; total_size = 0;
 		tracks = new Array(); tracks_total = 0;
 		TITLE = "untitled"; SECTORSIZE = 0; TYPE = null;
-		openTrack = null;
+		openTrack = null; openFile = null;
 		loadedFile_dir = Path.dirname(loadedFile);
 		loadedFile_ext = Path.extname(input).toLowerCase().substr(1);
 	
@@ -134,85 +148,155 @@ class CDInfo
 		
 		parser = null;
 		//Do stuff post parsing
-		postParse_check(loadedFile_ext);
+		postParse_check();
 		
 	}//-------------
 
 	/* Parsing is complete, check the parsed data
 	 * and set some variables
 	 */ 
-	private function postParse_check(ext:String)
+	private function postParse_check()
 	{
 		if (tracks_total == 0) {
 			throw "No Tracks in the cue file";
 		}
 		
-		_getCDTypeFromTracks();
+		_getCDTypeFromTracks(); // Sets the SECTORSIZE
 		
 		LOG.log('CD Type = ' + TYPE);
 		LOG.log('Number of tracks = ' + tracks.length);
-		LOG.log('Image file = ' + image_path);
 		
-		// Format specific checks
-		// ASSERT the cd image exists
-		switch(ext) {
-		
-			
-			case "cue":
-			if (image_path == null) throw "Image file is not set";
-			//check to see if image is fullpath
-			if (!FileTool.pathExists(image_path)) {
-				image_path = Path.join(loadedFile_dir, image_path);
-				if (FileTool.pathExists(image_path) == false) 
-					throw "Image file does not exist - " + image_path;
-			}
-				
-			case "ccd":
-			// Try to find the image along the inputFile	
+		// :: Precheck for CCD
+		// :: CCD is experimental 
+		if (loadedFile_ext == "ccd")
+		{
 			var tryToFind:Array<String> = [".bin", ".img"];
 			for (i in tryToFind) {
-				//trace("Searching : " + Node.path.join(loadedFile_dir, TITLE + i));
 				if (FileTool.pathExists(Path.join(loadedFile_dir, TITLE + i))) {
-					image_path = Path.join(loadedFile_dir, TITLE + i);
+					tracks[0].diskFile = TITLE + i;
 					break; 
 				}
 			}
-			if (image_path == null) throw "Can't find image";
+			
+			if (tracks[0].diskFile == null) throw "CloneCD sheet, Can't find image.";
+			
+		}//-- end if ccd
 		
-		}//--
+
+		// :: -- Go through each and every track, regardless if multitrack or not -- ::
+		//  Check for every single one of the files if exist or not
+		//  Also count the number of file images
+		var cc:Int = 0;
+		for (i in tracks) 
+		{
+			if (i.diskFile == null) continue;
+			
+			cc++; // number of diskFiles found
+			
+			// -- Check files
+			var check = Path.join(loadedFile_dir, i.diskFile);
+			
+			// -- Exists
+			if (FileTool.pathExists(check) == false) {
+				throw "Track image file does not exist - " + check;
+			}
+			
+			// -- Get file sizes
+			var imageStats = Fs.statSync(check);
+			i.sectorSize = Math.ceil(imageStats.size / SECTORSIZE);
+			i.diskFileSize = Std.int(imageStats.size);
+			
+			if (i.sectorSize <= 0) {
+				throw "File Error, invalid filesize , " + check;
+			}
+			// Works for both single and multi file:
+			total_size += i.diskFileSize;
+			
+		}// :: end each track
 		
+		
+		// -- Is it a multiFile CUE file , or a single BIN multi Track file?
+		
+		if (cc == tracks.length) {
+			isMultiImage = true;
+			LOG.log(" Cue Sheet is MULTI FILE ");
+			postParse_Multi();
+		}
+		else if (cc == 1) {
+			isMultiImage = false;
+			LOG.log(" Cue Sheet is SINGLE FILE ");
+			postParse_Single(); // cue + ccd will go there
+		}
+		else if (cc == 0) {
+			throw "There are no FILES declared in the cuesheet.";
+		}
+		else{
+			throw "CDCRUSH doesn't support multi file cue sheets with multi tracks per file.";
+		}
+	
+		
+		// Combatibility
+		image_path = Path.join(loadedFile_dir, tracks[0].diskFile);
+		
+		// -- Post parse Info ::
+		#if debug
+		for (i in tracks)
+		{
+			i.debugInfo();
+		}
+		#end
+		
+	}//------------------------------------------
+	
+	
+	// -- 
+	// Check and process for a multiple BIN files
+	function postParse_Multi()
+	{
+		// already checked : all diskFiles exist.
+	}//---------------------------------------------------;
+	
+	// --
+	// Check and process for a single BIN
+	function postParse_Single()
+	{
+		/*
 		if (~/(\.bin|\.img|\.iso)$/i.match(image_path) == false) {
 			throw "Image Filename is not a .bin/.img/.iso";
+		}*/
+
+		if (tracks[0].diskFile == null) {
+			throw "The first track doesn't have a file image";
 		}
 		
-		//Calculate the tracks sector size
-		var imageStats = Fs.statSync(image_path);
-		var imageSectorSize = Math.ceil(imageStats.size / SECTORSIZE);
-		image_size = Std.int(imageStats.size);
-		
-		//Calculate tracks, starting from the end backwards to 0
+		var imageSectorSize = tracks[0].sectorSize; // This was set earlier
+	
+		//Calculate tracks, starting from the end, backwards to 0
 		var c = tracks_total - 1; 
 		//calculate last track manually, out of the loop
 		tracks[c].calculateStart();
 		tracks[c].sectorSize = imageSectorSize - tracks[c].sectorStart;
-		while (--c >= 0) {	//and all the others in a loop
+		while (--c >= 0) {	// and all the others in a loop
 			tracks[c].calculateStart();
 			tracks[c].sectorSize = tracks[c + 1].sectorStart - tracks[c].sectorStart;
-		}			
-	}//------------------------------------------
+		}
+		
+	}//---------------------------------------------------;
+	
 	
 	
 	/* CUE file parser
 	 */ 
 	private function parser_cue(line:String):Void
 	{
-		//skip comments
+		// Skip comments
 		if ( ~/^REM/i.match(line) ) return;
 		
 		// Get FILE image name
 		if ( ~/^FILE/i.match(line) ) {
-			//might want to change this to  matched regexpr
+			//might want to change this to matched regexpr
 			image_path = ~/["']+/g.split(line)[1];
+			openFile = ~/["']+/g.split(line)[1];
 			return;
 		}//--
 		
@@ -225,8 +309,9 @@ class CDInfo
 					throw 'Parse Error, Track-${i.trackNo} is already defined';
 				}
 			}
-			var track = new CueTrack(regTrack.matched(1), regTrack.matched(2));
-			tracks.push(track);
+			var tr:CueTrack = new CueTrack(regTrack.matched(1), regTrack.matched(2));
+			tr.diskFile = openFile; openFile = null;
+			tracks.push(tr);
 			tracks_total++;
 			openTrack = tracks[tracks_total - 1];	//point to the last track
 			return;
@@ -262,8 +347,8 @@ class CDInfo
 
 	/* Clone cd. CCD file parser
 	 */
-	private function parser_ccd(line:String):Void {
-		
+	private function parser_ccd(line:String):Void
+	{	
 		var regGetTrackNo = ~/\[TRACK\s*(\d*)\]/;
 		if ( regGetTrackNo.match(line) ) {
 			var tr = new CueTrack(regGetTrackNo.matched(1));
@@ -294,22 +379,20 @@ class CDInfo
 		}
 		
 		// TODO COMPLETE THE CCD PARSER? might be incomplete
-	}
+	}//---------------------------------------------------;
 	
 	
 	
 	/**
 	 * Save the current cd info as a cue file
 	 * @param	output File to save
-	 * @param	multiFileCue Set true to save as a multitrack/compressed cue, False for a single BIN.
 	 * @param	comment
 	 */
-	public function saveAs_Cue(output:String, ?multiFileCue:Bool, ?comment:String):Void
+	public function saveAs_Cue(output:String, ?comment:String):Void
 	{
 		var data = "";
 		var i = 0;	//Start with the second track.
 		var tr:CueTrack;
-		if (multiFileCue == null) multiFileCue = false;
 		if (tracks_total == 0) throw "No Tracks to write";
 		
 		if (TITLE == null) {
@@ -317,42 +400,29 @@ class CDInfo
 			TITLE = "untitled";
 		}
 		
-		imageFilename = TITLE + '.bin';
-		
 		while (i < tracks_total) {
 			tr = tracks[i];
 			
-			if (multiFileCue == false) {
-				if (i == 0)
-				data += 'FILE "' + imageFilename + '" BINARY\n';
-			}else
-			{
-				data += 'FILE "' + tr.filename + '" ' + 
-							FileTool.getFileExt(tr.filename).toUpperCase() + '\n';
+			if (tr.diskFile != null) {
+				data += 'FILE "' + tr.diskFile + '" BINARY\n';
 			}
 			
 			data += "\tTRACK " + tr.getTrackNoSTR() + ' ${tr.type}\n';
 			
 			//--Check pregap
 			if (tracks[i].hasPregap()) 
-			data += "\t\tPREGAP " + tracks[i].getPregapString() + "\n";
+				data += "\t\tPREGAP " + tracks[i].getPregapString() + "\n";
 			
-			if(multiFileCue) {
-				// Add just one index because it's multiple files
-				// and no multiple indexes are needed.
-				data += "\t\tINDEX 01 00:00:00\n";
-			} else {
-				//-- Add all the indexes
-				var t=0;
-				while(t<tracks[i].indexTotal){
-					var ind = tracks[i].indexAr[t];
-					data += "\t\tINDEX ";
-					if (ind.no < 10) data += "0";
-					data += ind.no + " ";
-					data += tracks[i].getIndexTimeString(t) + "\n";
-					t++;
-				}//--while
-			}//--endif
+			//-- Add all the indexes
+			var t=0;
+			while (t < tracks[i].indexTotal) {	
+				var ind = tracks[i].indexAr[t];
+				data += "\t\tINDEX ";
+				if (ind.no < 10) data += "0";
+				data += ind.no + " ";
+				data += tracks[i].getIndexTimeString(t) + "\n";
+				t++;
+			}//--while
 			
 			i++;
 			
@@ -406,21 +476,22 @@ class CDInfo
 		if (tracks_total == 0) throw "Warning , No tracks to save";
 		
 		// Filenames are in compressed form by default? is this ok?
+		// Safeguard
 		for (i in tracks) {
 			if (i.filename == null) throw 'Track ${i.trackNo} should have a filename set';
 		}
 
 		// What will be written on the file
-		var o = { 	cdTitle:TITLE,
-					sectorSize:SECTORSIZE,
-					imageSize:image_size,
-					tracks:tracks };
+		var o = { 	
+			cdTitle:TITLE,
+			sectorSize:SECTORSIZE,
+			imageSize:total_size,
+			version:VERSION,
+			tracks:tracks
+		};
 					
-		// !!CHANGED!!
-		//  Fs.writeFileSync(filename, Node.json.stringify(o, null, 4) );
-		//  to
-			Fs.writeFileSync(filename, Json.stringify(o, null, "\t"), "utf8");
-	}//------
+		Fs.writeFileSync(filename, Json.stringify(o, null, "\t"), "utf8");
+	}//---------------------------------------------------;
 	
 	
 	// Restore the object info from file
@@ -434,7 +505,7 @@ class CDInfo
 		
 		LOG.log('CDInfo restoring data - $filename');
 			
-		var obj = Json.parse( Fs.readFileSync(filename, { encoding:"utf8" } ));
+		var obj:Dynamic = Json.parse( Fs.readFileSync(filename, { encoding:"utf8" } ));
 		
 		tracks = new Array();
 		tracks_total = Reflect.fields(obj.tracks).length;
@@ -451,21 +522,48 @@ class CDInfo
 		}//--
 		
 		// Set isData property
+		var cc:Int = 0;
 		for (i in tracks) {
-			if (i.type != "AUDIO") i.isData = true; else i.isData = false;
+			if (i.diskFile != null) cc++;
 		}
+
+		// -- NEW --
+		isMultiImage = (cc > 1);
 		
+		// -- Get the root data from the JSON
 		TITLE = obj.cdTitle;
-		imageFilename = TITLE + '.bin';
-		image_size = obj.imageSize;
+		total_size = obj.imageSize; // combatibility imageSize
 		_getCDTypeFromTracks();
+		
+		// Version 1.0 and before didn't support multiple image files
+		// Did not have fields: "diskFileSize": "diskFile",		
+		
+		// --
+		// -- Combatibility Check :: --
+		if (!isMultiImage)
+		{
+			if (tracks[0].diskFile == null) { // old version
+				tracks[0].diskFile = TITLE + '.bin';
+			}
+		}
+		// NOTE: 
+		// When restoring SINGLE TRACKS, CUE+BIN will be named as TITLE.xxx
+		// When restoring MULTI TRACKS, BINS will be the same name as they were and CUE will be TITLE.CUE
 		
 		LOG.log("Title = " + TITLE);
 		LOG.log("Tracks Total = " + Std.string(tracks_total));
 		LOG.log("SectorSize = " + Std.string(SECTORSIZE));
 	
-	}//-------
+	}//---------------------------------------------------;
 	
+	
+	// -- Get a cuename that is the same name as the image
+	public inline function getCueName():String
+	{
+		return TITLE + ".cue";
+	}//---------------------------------------------------;
+	
+	// --
 	private function _getCDTypeFromTracks():Void
 	{
 		TYPE = null;
@@ -544,15 +642,19 @@ class CueTrack
 	public var indexTotal:Int = 0;
 	public var indexAr:Array<CueIndex>;
 
-	public var sectorSize:Int = 0;		//Real sector count
-	public var sectorStart:Int = 0;		//Starting Sector on the IMAGE!
+	public var sectorSize:Int = 0;		// Real sector count
+	public var sectorStart:Int = 0;		// Starting Sector on the IMAGE!
 
 	public var pregapMinutes:Int = 0;
 	public var pregapSeconds:Int = 0;
 	public var pregapMillisecs:Int = 0;
 
-	public var filename:String = "";
+	public var filename:String = null; // Hold the generated filename
 	
+	public var diskFile:String = null; // If the track is attached to a file
+	public var diskFileSize:Int = 0;  // If diskFile is set, this is it's size
+	
+	// --
 	public function new(?trackNo:Dynamic,?type:String) {
 		this.trackNo = Std.parseInt(trackNo);
 		if(type!=null) this.type = type.toUpperCase();
@@ -565,6 +667,8 @@ class CueTrack
 		}
 		return false;
 	}//--------------------------------
+	// This is for singleFile sheets, calculates the sector which the track starts
+	// Based on the index time
 	public function calculateStart():Void {
 		if(indexTotal==0) {
 			throw 'Track-$trackNo has no index defined';
@@ -593,13 +697,13 @@ class CueTrack
 		pregapSeconds   =  Std.parseInt(ss);
 		pregapMillisecs =  Std.parseInt(ms);
 	}//---------------------------------
-	public function getTrackName():String {
+	public function getTrackName():String { // Auto generated track name, not real
 		return "Track" + getTrackNoSTR();
 	}//---------------------------------
 	public function getTrackNoSTR():String {
 		return ((trackNo > 9)?Std.string(trackNo):("0" + trackNo));
 	}//---------------------------------------------------;
-	public function getFilenameRaw():String{
+	public function getFilenameRaw():String{ // Auto generated track name, not real
 		var r = getTrackName() + ".";
 		if (isData) r += "bin"; else r += "pcm";
 		return r;
@@ -625,5 +729,15 @@ class CueTrack
 	   }
 	   return o.substr(0, -1);//remove the last ":"
    }//--------------------------------
+   
+   #if debug
+	public function debugInfo()
+	{
+		LOG.log('-Track:$trackNo | diskFile:$diskFile | diskFileSize:$diskFileSize | ');
+		LOG.log('- indexTot:$indexTotal | sector:$sectorSize | sectorStart:$sectorStart | isData:$isData');
+		
+	}//---------------------------------------------------;
+   
+   #end
 		
 }//-- CueTrack--//

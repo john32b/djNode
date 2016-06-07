@@ -89,8 +89,14 @@ class FileTool
 		
 		Fs.rename(source, dest, function(er:Error) {
 			if (er != null) {
-				copyFile(source, dest, onComplete, onProgress);
-				/// TODO, delete the source file when done!
+				copyFile(source, dest, function() {	
+					try {
+						Fs.unlinkSync(source);
+					}catch (e:Dynamic) {
+						LOG.log('Could not delete "$source" while moving');
+					}
+					onComplete();
+				}, onProgress);
 			} else {
 				//It smart moved ok.
 				onComplete();
@@ -122,7 +128,7 @@ class FileTool
 		});	
 		
 		if (onProgress != null) // TODO: FIX onProgress 
-		_out.on("data", function(data:Dynamic) onProgress());
+			_out.on("data", function(data:Dynamic) onProgress());
 	}//---------------------------------------------------;
 
 	/*

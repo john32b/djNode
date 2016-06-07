@@ -55,7 +55,7 @@ class Arc extends AppSpawner implements IArchiver
 			// TODO, does that file already exist? if so add a _counter until it doesnt ?
 		}
 		
-		LOG.log('Compressing $ar to "$destinationFile" ... ' );
+		LOG.log('Compressing "$ar" to "$destinationFile" ... ' );
 		
 		// NOTE: Possible problem if input files at different directories!
 		var sourceFolder = Path.dirname(ar[0]);
