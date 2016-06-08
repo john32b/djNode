@@ -53,9 +53,6 @@ class CDInfo
 	// Autoset when it reads the cue sheet.
 	public var isMultiImage(default, null):Bool;
 	
-	// Path to the actual image file
-	public var image_path:String; /// <== DON'T DEL
-	
 	// Total tracks and files size in bytes.
 	// Autoset when parsing the CUE file
 	public var total_size(default, null):Int;
@@ -125,7 +122,7 @@ class CDInfo
 		
 		// Init Variables
 		loadedFile = input;
-		image_path = null; total_size = 0;
+		total_size = 0;
 		tracks = new Array(); tracks_total = 0;
 		TITLE = "untitled"; SECTORSIZE = 0; TYPE = null;
 		openTrack = null; openFile = null;
@@ -217,7 +214,7 @@ class CDInfo
 		
 		// -- Is it a multiFile CUE file , or a single BIN multi Track file?
 		
-		if (cc == tracks.length) {
+		if (cc == tracks.length && cc > 1) {
 			isMultiImage = true;
 			LOG.log(" Cue Sheet is MULTI FILE ");
 			postParse_Multi();
@@ -233,10 +230,9 @@ class CDInfo
 		else{
 			throw "CDCRUSH doesn't support multi file cue sheets with multi tracks per file.";
 		}
-	
 		
 		// Combatibility
-		image_path = Path.join(loadedFile_dir, tracks[0].diskFile);
+		// image_path = Path.join(loadedFile_dir, tracks[0].diskFile);
 		
 		// -- Post parse Info ::
 		#if debug
@@ -295,7 +291,6 @@ class CDInfo
 		// Get FILE image name
 		if ( ~/^FILE/i.match(line) ) {
 			//might want to change this to matched regexpr
-			image_path = ~/["']+/g.split(line)[1];
 			openFile = ~/["']+/g.split(line)[1];
 			return;
 		}//--
@@ -442,6 +437,9 @@ class CDInfo
 	// This does not rename the filename!!! It must be done elsewhere
 	public function createFromImage(filename:String):Void
 	{
+		throw "This is broken";
+		var image_path:String = "";
+		
 		tracks = new Array(); tracks_total = 0;
 		
 		var rtitle:EReg = ~/([^\/\\]*)\.(?:bin|iso|img)$/i;
