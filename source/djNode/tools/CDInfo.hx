@@ -499,6 +499,8 @@ class CDInfo
 	// # THROWS String errors!
 	public function loadSettingsFile(filename:String):Void
 	{
+		var versionLoaded:Int = 1;
+		
 		if (FileTool.pathExists(filename) == false) {
 			throw 'CDInfo file "$filename" does not exist';
 		}
@@ -506,6 +508,12 @@ class CDInfo
 		LOG.log('CDInfo restoring data - $filename');
 			
 		var obj:Dynamic = Json.parse( Fs.readFileSync(filename, { encoding:"utf8" } ));
+		if (obj == null) throw 'Can\'t parse parameters file';
+		
+		// Get the version of the cdcrush, if missing it defaults to1
+		if (Reflect.hasField(obj, "version")) {
+			versionLoaded = obj.version;
+		}
 		
 		tracks = new Array();
 		tracks_total = Reflect.fields(obj.tracks).length;
@@ -517,17 +525,16 @@ class CDInfo
 			for (a in Reflect.fields(obj.tracks[i])) {
 				Reflect.setField(tr, a, Reflect.getProperty(obj.tracks[i], a)); 
 			}
+			
 			tracks.push(tr);
 			i++;
 		}//--
 		
-		// Set isData property
+		// -- NEW --
 		var cc:Int = 0;
 		for (i in tracks) {
 			if (i.diskFile != null) cc++;
 		}
-
-		// -- NEW --
 		isMultiImage = (cc > 1);
 		
 		// -- Get the root data from the JSON
@@ -546,6 +553,17 @@ class CDInfo
 				tracks[0].diskFile = TITLE + '.bin';
 			}
 		}
+		
+		if (versionLoaded == 1)
+		{
+			for (t in tracks)
+			{
+				t.isData = (t.type != "AUDIO");
+				t.diskFileSize = t.sectorSize * SECTORSIZE;
+			}
+		}
+		
+		
 		// NOTE: 
 		// When restoring SINGLE TRACKS, CUE+BIN will be named as TITLE.xxx
 		// When restoring MULTI TRACKS, BINS will be the same name as they were and CUE will be TITLE.CUE
@@ -655,11 +673,13 @@ class CueTrack
 	public var diskFileSize:Int = 0;  // If diskFile is set, this is it's size
 	
 	// --
-	public function new(?trackNo:Dynamic,?type:String) {
-		this.trackNo = Std.parseInt(trackNo);
-		if(type!=null) this.type = type.toUpperCase();
+	public function new(?trackNo:Dynamic, ?type:String) {
 		indexAr = new Array();
-		if (type != "AUDIO") isData = true; else isData = false;
+		this.trackNo = Std.parseInt(trackNo);
+		if (type != null) {
+			this.type = type.toUpperCase();
+			isData = (type != "AUDIO");
+		}
 	}//--------------------------------
 	public function indexExists(indexNo:Int):Bool {
 		for(i in indexAr) {
