@@ -60,7 +60,7 @@ class LOG
 	// If true, the logger will write to the log file in realtime, else at the end of the program
 	public static var flag_realtime_file:Bool = true;
 	// Use socket.io logging ?
-	public static var flag_socket_log:Bool = true; 
+	public static var flag_socket_log:Bool = false;
 	// Keep messages in memory?
 	public static var flag_keep_in_memory:Bool = true;
 	// How many messages to keep in memory, -- Avoid hogging the ram with a huge message log.
@@ -156,7 +156,7 @@ class LOG
 			push_File( { level:level, pos:pos, log:"---- OBJECT ----\n" + Std.string(obj) } );
 		}
 		
-		if (onLog != null) onLog( { pos:pos, level:level, log:"Logged an object" } );
+		if (onLog != null) onLog( { pos:pos, level:level, log : "Logged an object" } );
 	}//---------------------------------------------------;
 	
 	/*

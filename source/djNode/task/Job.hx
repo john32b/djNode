@@ -13,7 +13,6 @@
 package djNode.task;
 
 import djNode.tools.LOG;
-import js.Node;
 import djNode.task.Task.Qtask;
 
 

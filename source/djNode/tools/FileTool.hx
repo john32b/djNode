@@ -2,12 +2,7 @@
  * FileTool
  * @author: johndimi, <johndimi@outlook.com> , @jondmt
  * --------------------------------------------------------
- * @Description
- * -------
- * Various file operation functions
- * 
- * @Notes
- * ------
+ * - Various Helpers for File and Path operations
  * 
  ========================================================*/
 package djNode.tools;
@@ -153,6 +148,8 @@ class FileTool
 	/** 
 	 * 
 	 * Basic and fast multiple file getter from folders
+	 * Returns Array<full file path>
+	 * Returns Empty Array if no files found
 	 * 
 	   Working:
 	   -------------------
@@ -162,7 +159,7 @@ class FileTool
 		(*)			-> return extentionless files
 	 
 	 **/
-	public static function getFileListFromAsterisk(path:String):Array<String>	/// STUPID NAME
+	public static function getFileListFromWildcard(path:String):Array<String>
 	{
 		#if !js
 		throw "Not supported yet";
@@ -187,7 +184,7 @@ class FileTool
 		
 		for (i in allfiles) {
 			try {
-			stats = Fs.statSync(Path.join(basePath, i));
+				stats = Fs.statSync(Path.join(basePath, i));
 			}catch (e:Dynamic) { // Skip locked files. Will this cause trouble if I ever need ALL files??
 				// LOG.log('Encountered a Locked File! "$i"', 2);
 				continue;
@@ -226,18 +223,10 @@ class FileTool
 	 * @param	file
 	 * @return
 	 */
-	public static function getPathNoExt(file:String):String {
-		
-		/// LOG.log("IS DEPRECATED", 2);
-		/// NEW WAY IS:
-		/// Path.parse(file).dir;  CHECK IT OUT??!?
-		
+	public static function getPathNoExt(file:String):String 
+	{
 		return Path.join(Path.parse(file).dir, Path.parse(file).name);
-		/*
-		var ext = ~/(.*)\.\S*$/;
-		if (ext.match(file)) return ext.matched(1);
-		return file;
-		*/
 	}//---------------------------------------------------;
 	
+
 }

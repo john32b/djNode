@@ -1,7 +1,7 @@
 # Build release
 
 -lib hxnodejs
--cp ../source/
+-lib djNode
 -cp src/
 -main Main
 -js bin/app.js

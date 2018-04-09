@@ -7,12 +7,12 @@
  * 
  * Features:
  * ===========
- * . Supports NodeJS 
- * . CS Support is in development, doesn't work fully.
- * . Printing text,
- * . Manipulating the cursor,
+ * . Printing text
+ * . Text and Background Colors
+ * . Easy Formatted Text with custom Tags
+ * . Manipulating the cursor
  * . Colors in Windows and Linux terminals,
- * . Clearing portions of the terminal,
+ * . Clearing portions of the terminal
  * 
  * Notes:
  * ============
@@ -31,24 +31,21 @@
  *    If you want to have (x,y) start at (1,1) of the term window, 
  *  use the pageDown() function. It will guarantee an empty terminal.
  * 
- * Version History
+ * Examples :
  * ================
- * # Added support for light backgrounds
- * # Added support for printing formatted text, 
- *   you can now print colored text a lot easier than before,
- * 
- *   e.g. printf("~red~Color Red~bg_white~White BG~!~");
- * 		  is the equivalent of:
- * 	      fg(Color.red).print("Color Red").bg(Color.white).print("White BG").reset();
+ *   
+ * 	= Tags in Strings for inline coloring : 
+ *    e.g. printf("~red~Color Red~bg_white~White BG~!~");
+ * 		   is the equivalent of:
+ * 	       fg(Color.red).print("Color Red").bg(Color.white).print("White BG").reset();
  * 
  ========================================================*/
 package djNode;
 
-import djNode.tools.LOG;
 import StringTools;
 
 #if debug
-  //import dj.tools.LOG;
+  import djNode.tools.LOG;
 #end
 
 #if cs 
@@ -202,7 +199,7 @@ class Terminal
 		
 		clearScreen();
 		move(1, 1);
-		printLine().println("Color Demonstration").printLine();
+		drawLine().println("Color Demonstration").drawLine();
 		
 		//-- Draw the foreground colors
 		for (i in AVAIL_COLORS) {
@@ -219,7 +216,7 @@ class Terminal
 			if (i == Color.white || i == Color.yellow) fg(Color.darkgray); else fg(Color.white);
 			bg(i).print(i).endl().resetBg();
 		}
-		printLine();
+		drawLine();
 	}//---------------------------------------------------;
 	
 	
@@ -273,12 +270,7 @@ class Terminal
 	 */
 	public inline function println(str:String):Terminal
 	{
-		#if js
-			Node.process.stdout.write(str + "\n");
-		#else
-			Sys.println(str);
-		#end
-		
+		print(str + "\n");
 		return this;
 	}//---------------------------------------------------;
 	
@@ -435,7 +427,7 @@ class Terminal
 	 * @param symbol optional custom symbol
 	 * @param length optional custom length
 	 */
-	public function printLine(?symbol:String,?length:Int):Terminal 
+	public function drawLine(?symbol:String, ?length:Int):Terminal 
 	{
 		if (symbol == null) symbol = DEFAULT_LINE_SYMBOL;
 		if (length == null) length = DEFAULT_LINE_WIDTH;
@@ -489,12 +481,21 @@ class Terminal
 	
 
 	/**
-	 * Convert markup text to ready to a terminal-ready
-	 * escaped sequence text.
+	 * Translates Special inline Tags to Special terminal codes and strings
+	 * Returns the new translated string. Useful to adding color codes.
+	 * 
+	 * Tags:
+	 * 	~!~			; Reset ALL
+	 *  ~!fg~		; Reset Foreground color
+	 *  ~!bg~		; Reset background color
+	 *  ~line~		; Prints a Line
+	 *  ~line2~		; Prints a Line Style 2
+	 *  ~bg_COLOR~ 	; where COLOR is a valid COLOR name ; Background Color
+	 *  ~COLOR~		; where COLOR is a valid COLOR name	; Foreground Color
 	 * 
 	 * Examples:
 	 * "~yellow~This is yellow. ~red~And this is red~!~"
-	 * "~line~~Text~~line~"
+	 * "~line~\nText\n~line~"
 	 * 
 	 */
 	public function sprintf(str:String):String
@@ -509,9 +510,6 @@ class Terminal
 			case "!bg"	: return _RESET_BG;
 			case "line":  return StringTools.lpad("", DEFAULT_LINE_SYMBOL, DEFAULT_LINE_WIDTH) + "\n";
 			case "line2": return StringTools.lpad("", DEFAULT_LINE_SYMBOL, Math.ceil(DEFAULT_LINE_WIDTH / 2)) + "\n";
-			
-			case "!line": trace("Error: Deprecated"); return "--deprecated--";
-			case "!line2": trace("Error: Deprecated"); return "--deprecated--";
 
 			// Proceed checking for colors or bg colors:
 			default :

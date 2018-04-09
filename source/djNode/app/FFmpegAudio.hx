@@ -1,220 +1,225 @@
 /****
- * FFmpegAudio
+ * FFmpegAudio Interface
  * -------
  * johndimi, johndimi@outlook.com
  * -------
- * @requires: none
+ * @requires: [FFmpeg.exe]
  * @supportedplatforms: nodeJS
- * @architectures: Windows, Linux
+ * @architectures: Windows
  * 
- * Audio Tools, uses ffmpeg to compress 
- * and decompress tracks
+ * 
+ *  - Reports progress with events
+ * 	- Encode to PCM
+ *  - Encode to MP3
+ *  - Encode to LibVorbis
+ *  - Encode to LibOpus
  *
- * @events: --overriden-- plus:
- * 			progress(int)
+ * 
+ * @notes :
+ * 
+ * 	! ALL operations Overwrite generated files
+ *  ! ALL operations Input files are not checked
+ * 
+ * @events: 
+ * 			`close` 	: ExitOK:<Bool>, ErrorMessage:<String>
+ * 			`progress` 	: Percent<Int>
  * 			
  * 
  * Useful Links:
  * 
  * https://trac.ffmpeg.org/wiki/Encode/HighQualityAudio
  * http://ffmpeg.org/ffmpeg-codecs.html#libopus
- * 
  * http://ffmpeg.org/ffmpeg-codecs.html#libvorbis
  * ---------------------------------------*/
 
 package djNode.app;
 
 import djNode.tools.FileTool;
-import djNode.app.AppSpawner;
 import djNode.tools.LOG;
 import js.Node;
 import js.node.Fs;
 import js.node.Path;
 
-/**
- * FFMPEG should be installed and be on the GLOBAL PATH on windows
- * and be installed as a package on LINUX
- **/
-class FFmpegAudio extends AppSpawner
+
+class FFmpegAudio extends CLIApp
 {
-	var hh:Int;
-	var mm:Int;
-	var ss:Int;
+	// --
+	static var WIN32_EXE:String = "ffmpeg.exe";
+	
+	// Ogg vorbis Quality (index), VBR kbps
+	public static var VORBIS_QUALITY:Array<Int> = [ 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 500 ];
+
+	// MP3 quality (index), VBR kbps
+	public static var MP3_QUALITY:Array<Int> = [ 245, 225, 190, 175, 165, 130, 115, 100, 85, 65];
+
+	// OPUS quality (index), VBR kbps
+	public static var OPUS_QUALITY:Array<Int> = [ 32, 48, 64, 80, 96, 112, 128, 160, 320];
+	
+	// -- Helpers
 	var secondsConverted:Int;
 	var targetSeconds:Int;
-	var percent:Int;
+	var progress:Int;
 	
-	// Is the current operation complete or not
-	// Useful to double checking a convertion result
-	public var complete(default,null):Bool = false;
-	
-	var qualityMap:Array<Int>;
-	
-	//---------------------------------------------------;
-	public function new() 
+	public function new(exePath:String = "") 
 	{
-		super();
-		audit.linux = { check:true, type:"onpath", param:"ffmpeg -L"};
-		audit.win32 = { check:true, type:"onpath", param:"ffmpeg -L"}; // Running ffmpeg alone will error
+		super(Path.join(exePath, WIN32_EXE));
 		
-		qualityMap = [2, 4, 6]; // 0 => 2 , 1 => 4, 2 => 6
+		// - Listen to Progress
+		onStdErr = function(s){
+			if (targetSeconds == 0) return;
+			secondsConverted = readSecondsFromOutput(s, "time=(\\d{2}):(\\d{2}):(\\d{2})");
+			if (secondsConverted ==-1) return;
+			progress = Math.ceil((secondsConverted / targetSeconds) * 100);
+			if (progress > 100) progress = 100;
+			events.emit("progress", progress);
+		};
+	
 	}//---------------------------------------------------;
 	
 	/**
-	 * Converts a PCM audio file to a compressed OGG vorbis file
-	 * ---------------------------------------------------
-	 * @param	input
-	 * @param	output if ommited, it will be [input.ogg]
-	 * @param	quality [1,2,3] Ogg Vorbis [4] Flac
-	 */
-	public function compressPCM(input:String, quality:Int = 2, ?output:String):Void
-	{	
-		var outputParam:Array<String> = null;
-		var outputExt:String = "";
-	
-		if (quality < 1) quality = 1;
-		else if (quality > 4) quality = 4;
-		
-		// Choose codec based on quality
-		// 1-3 = OGG Vorbis codec
-		// 4   = Flac codec
-		// ----------------------------
-		if (quality <= 3) {	
-			outputExt = ".ogg";
-			outputParam = ["-c:a", "libvorbis"];
-			outputParam.push('-q');
-			outputParam.push(Std.string( qualityMap[quality - 1] ) );
-		}else {
-			outputExt = ".flac";
-			outputParam = ["-c:a", "flac"];
+	   Returns FFMPEG time to seconds. HELPER FUNCTION
+	**/
+	function readSecondsFromOutput(input:String, expression:String)
+	{
+		var e = new EReg(expression,"");
+		var seconds = -1;
+		if (e.match(input))
+		{
+			var hh:Int = Std.parseInt(e.matched(1));
+			var mm:Int = Std.parseInt(e.matched(2));
+			var ss:Int = Std.parseInt(e.matched(3));
+			seconds = (ss + (mm * 60) + (hh * 360));
 		}
-		
-		if (output == null) {
-			output = FileTool.getPathNoExt(input) + outputExt;
-		}
-		
-		LOG.log('Converting [$input] to "$output". QUALITY = $quality');
-
-		var st = Fs.statSync(input).size;
-		
-		// PCM is 176400 bytes per second
-		targetSeconds = Math.floor(st / 176400 );
-		
-		complete = false;
-		
-		var proc_params:Array<String> = 
-			[	
-				"-y",				// overwrite destination file
-				"-f", "s16le", 		// signed 16-bit little endian	// FORCE FROM PCM
-				"-ar", "44.1k", 									// FORCE FROM PCM
-				"-ac", "2",			// stereo
-				"-i", input
-			];
-			
-			for (i in outputParam) proc_params.push(i);
-			proc_params.push(output);
-			
-		//LOG.log("FFMPEG PARAMS:");
-		//LOG.logObj(proc_params);
-		spawnProc("ffmpeg", proc_params);
-		listen_progress();
+		return seconds;
 	}//---------------------------------------------------;
+
+	/**
+	   Read a file's duration, used for when converting to PCM
+	   @param	input 
+	   @param	callback <0 for error. >0 for seconds read
+	**/
+	function getSecondsFromFile(input:String,callback:Int->Void)
+	{
+		var i = -1;
+		CLIApp.quickExec(exe_full + ' -i "$input" -f null -', function(success, stdout, stderr){
+			if (success){
+				i = readSecondsFromOutput(stderr, "\\s*Duration:\\s*(\\d{2}):(\\d{2}):(\\d{2})");
+			}
+			callback(i);
+		});
+	}//---------------------------------------------------;
+	
+	// -- Helper
+	// -- Set the progress vars for a PCM file
+	function _initProgressVars(input:String)
+	{
+		var fsize:Int = Std.int(Fs.statSync(input).size);
+		secondsConverted = progress = 0;
+		targetSeconds = Math.floor(fsize / 176400);
+		events.emit("progress", 0);
+	}//---------------------------------------------------;
+
 	
 	/**
-	 * Call this after the process has been created.
-	 */
-	private function listen_progress():Void
-	{	
-		// typical line:
-		// size: 99KB time=hh:mm:ss.mm bitrate= 123.4kbits/s
-		
-		var expr_size = ~/size=\s*(\d*)kb/i; 			  // get kb processed
-		var expr_time = ~/time=(\d{2}):(\d{2}):(\d{2})/i; // get hours, minutes and seconds
-		
-		proc.stderr.setEncoding("utf8");
-		proc.stderr.on("data", function(data:String) {
-			if (expr_time.match(data)) {
-				hh = Std.parseInt(expr_time.matched(1));
-				mm = Std.parseInt(expr_time.matched(2));
-				ss = Std.parseInt(expr_time.matched(3));
-				secondsConverted = ss + (mm * 60) + (hh * 360);
-				percent = Math.ceil((secondsConverted / targetSeconds) * 100);
-				if (percent > 100) percent = 100;
-				events.emit("progress", percent);
+	   Convert an audio file to a PCM file (CDDA)
+	   @param	input Full path of file to be converted to PCM
+	   @param	output If ommited will be autonamed
+	**/
+	public function audioToPCM(input:String, ?output:String)
+	{		
+		if (output == null) output = FileTool.getPathNoExt(input) + ".pcm";
+		LOG.log('Converting `$input` to PCM `$output`');
+		secondsConverted = progress = 0;
+		events.emit("progress", progress); // Zero out progress
+		getSecondsFromFile(input, function(sec)
+		{
+			if (sec < 0){
+				events.emit("close", false, 'Could not read $input');
+				return;
 			}
-		});
-	}//---------------------------------------------------;
-	
-	/*
-	 * Returns the audio file duration in seconds
-	 * Runs ffmpeg with -i to get info
-	 */
-	private function getDuration(input:String):Void
-	{
-		secondsConverted = 0;
-		targetSeconds = 0;
-		
-		// - pre
-		// - MAKE SURE FFMPEG EXISTS!
-		AppSpawner.quickExec('ffmpeg -i "$input"', function(s:Bool, o:String, e:String) {
-			
-			// Warning!! ffmpeg will always exit with error for displaying info.
-			// Do not check status
-			
-			var expr_duration = ~/\s*Duration:\s*(\d{2}):(\d{2}):(\d{2})/;
-			if (expr_duration.match(e)) 
-			{
-				hh = Std.parseInt(expr_duration.matched(1));
-				mm = Std.parseInt(expr_duration.matched(2));
-				ss = Std.parseInt(expr_duration.matched(3));
-				targetSeconds = (ss + (mm * 60) + (hh * 360));
-			}else
-			{
-				// ERROR
-				// CAN'T EVEN READ THE STDERR
-				if (FileTool.pathExists(input)) {
-					events.emit("close", false , 'Could not get duration.');
-				}else
-				{
-					events.emit("close", false , '$input, no such file.');
-				}
-			}
-			
-			LOG.log('Duration got [$targetSeconds]');
-			events.emit("durationGet");
-		});
-
-	}//---------------------------------------------------;
-	
-	
-	// --
-	public function convertToPCM(input:String,?output:String):Void 
-	{ 
-		//ffmpeg -i input.flv -f s16le -acodec pcm_s16le output.raw
-		LOG.log('Converting [$input] to PCM ..');
-		
-		complete = false;
-		
-		// Get everything except the extension
-		if (output == null) {
-			output = FileTool.getPathNoExt(input) + ".pcm";
-		}
-		
-		// Proceed to convert ater getting duration
-		events.once("durationGet", function() {
-			spawnProc("ffmpeg",
-			[	"-i", input,
-				"-y",
-				"-f", "s16le",
-				"-acodec", "pcm_s16le",
-				output
+			targetSeconds = sec;
+			start([
+				'-i', input,
+				'-y', '-f', 's16le', '-acodec', 'pcm_s16le', output
 			]);
-			listen_progress();
 		});
+	}//---------------------------------------------------;
+		
+		
+	/**
+	   Convert a PCM audio file to OGG OPUS
+	   @param	input
+	   @param	quality In KBPS from 32 to 500
+	   @param	output If ommited, will be automatically set
+	**/
+	public function audioPCMToOggVorbis(input:String, quality:Int, ?output:String)
+	{
+		if (quality < 32) quality = 32;
+		else if (quality > 500) quality = 500;
+		if (output == null) output = FileTool.getPathNoExt(input) + ".ogg";
+		LOG.log('Converting `$input` to OPUS OGG `$output`, Quality `$quality`');
+		_initProgressVars(input);
+		start([
+			'-y', '-f', 's16le', '-ar', '44.1k', '-ac', '2', '-i', input,
+			'-c:a', 'libopus', '-b:a', '${quality}k', '-vbr', 'on', '-compression_level', '10', output
+		]);
+	}//---------------------------------------------------;
 	
-		// This is done first, Gets duration, then runs ffmpeg again
-		getDuration(input);
+	/**
+	   Convert a PCM audio file to OGG VORBIS
+	   @param	input
+	   @param	quality Quality from 0(lowest) to 10(highest)
+	   @param	output
+	**/
+	public function audioPCMToOggOpus(input:String, quality:Int, ?output:String)
+	{
+		if (quality < 0) quality = 0; else if (quality > 10) quality = 10;
+		if (output == null) output = FileTool.getPathNoExt(input) + ".ogg";
+		
+		LOG.log('Converting `$input` to VORBIS OGG `$output`, Quality `$quality`');
+		_initProgressVars(input);
+		start([
+			'-y', '-f', 's16le', '-ar', '44.1k', '-ac', '2', '-i', input,
+			'-c:a', 'libvorbis', '-q', '$quality', output
+		]);
+	}//---------------------------------------------------;
 	
+	/**
+	   Convert a PCM audio file to FLAC
+	   @param	input
+	   @param	quality
+	   @param	output
+	**/
+	public function audioPCMToFlac(input:String, ?output:String)
+	{
+		if (output == null) output = FileTool.getPathNoExt(input) + ".flac";
+		
+		LOG.log('Converting `$input` to FLAC `$output`');
+		_initProgressVars(input);
+		
+		start([
+			'-y', '-f', 's16le', '-ar', '44.1k', '-ac', '2', '-i', input,
+			'-c:a', 'flac', output
+		]);
+	}//---------------------------------------------------;
+
+	/**
+	   Convert a PCM audio file to MP3 Variable Bitrate
+	   @param	input
+	   @param	quality 9 to 0 (lowest -> highest)
+	   @param	output
+	**/
+	public function audioPCMToMP3(input:String, quality:Int, ?output:String)
+	{
+		if (quality < 0) quality = 0; else if (quality > 9) quality = 9;
+		if (output == null) output = FileTool.getPathNoExt(input) + ".mp3";
+		
+		LOG.log('Converting `$input` to MP3 `$output`, Quality `$quality`');
+		_initProgressVars(input);
+		start([
+			'-y', '-f', 's16le', '-ar', '44.1k', '-ac', '2', '-i', input,
+			'-c:a', 'libmp3lame', '-q:a', '$quality', output
+		]);
 	}//---------------------------------------------------;
 	
 }//--end class--

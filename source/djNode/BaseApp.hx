@@ -1,626 +1,530 @@
 /**----------------------------------------------
- * - Baseapp.hx
- * ----------------------------------------------
- * - Basic application extender
- * ----------------------------------------------
- * @Author: johndimi, <johndimi@outlook.com>, @jondmt
- * 
+ * BaseApp
+ * ===========
+ * = Generic Template for the Main Entry Class
  * 
  * Features:
- * ===========
+ * ------------
+ * - Easy retrieval of arguments 
  * . Extend this class
  * . Handles input parameters, check examples
+ * . Supports basic wildcard for input files (*.ext) or (file.*)
+ * . Semi-automated usage info
  * 
  * Notes:
- * ============
+ * ------------
  * 
- * Version History
- * ================
+ * Examples:
+ * ------------
  * 
  ========================================================*/
 package djNode;
 
+import js.Error;
 import js.Node;
 import js.node.Path;
-import haxe.PosInfos;
 import djNode.Keyboard;
 import djNode.tools.FileTool;
-import djNode.tools.StrTool;
 import djNode.Terminal;
 import djNode.tools.LOG;
 
+#if debug
+	//import haxe.CallStack;
+#end
 
-/**
- * Generic Template for command line applications
- * -----------
- * Features:
- *  User sets what type of arguments should be accepted
- *  Easy retrieval of arguments,
- *  Supports basic wildcard for input files (*.ext) or (file.*)
- *  Semi-automated usage info
- * 
- */
+
+
 class BaseApp
 {
 	// Keep one terminal object for the entire app.
 	// All other classes should link to this one, instead of creating new terminals.
-	public static var global_terminal(default, null):Terminal;
-	// Pointer to the global terminal, small varname for quick acess
-	var t:Terminal;
+	public static var TERMINAL(default, null):Terminal;
 	
-	// The filename of the executable. e.g. "program.js"
-	public var executable_name(default, null):String;
+	// Pointer to the global terminal, small varname for quick access from within this class
+	var T(default, null):Terminal;
 	
-	// Used only in criticalError();
-	var flag_critical_exit(default,null):Bool;
-	// Set when the user forces the app to quit
-	var flag_force_exit(default,null):Bool;
-	// Autoset by program if inputs were discovered with * inputs
-	var flag_params_Input_discovered(default,null):Bool = false;
-	// ---------
 	
-	// Holds all the options got.
-	var params_Options:Map<String,AcceptedArgument>; // # USER READ
-	// List of input files got
-	var params_Input:Array<String>;		// # USER READ
-	// Holds the action got. ONLY 1 ACTION at a time
-	var params_Action:String = null;	// # USER READ
-	// The output file/dir got
-	var params_Output:String = null; 	// # USER READ
-	// Valid arguments set by user
-	// use addParam() to add accepted parameters
-	var params_Accept:Map<String,AcceptedArgument>;
-	// - Stores what extensions trigger which actions,
-	// 	 Comma separated / e.g. ['EX,zip,7z,arc,rar'] // EX action for zip,7z,arc,rar
-	// use setActionByFileExt() to add stuff
-	var params_autoActionExt:Array<String>;
-
+	// #USERSET
+	// Fill this object up (check the typedef for more info)
+	var PROGRAM_INFO:AppInfo = {
+		name:"nodeJS Application",
+		version:"0.1",
+		executable:"app.js"
+	}
 	
-	//-- Helpers
-	// Number of available actions
-	var _number_of_actions:Int = 0; 
-	// Number of available options
-	var _number_of_options:Int = 0;
+	// #USERSET
+	// Fill this object up, (check the typedef for more info)
+	var ARGS:AppArguments = {
+		inputRule:"yes",
+		outputRule:"opt",	
+		requireAction:false,
+		supportWildcards:true,
+		supportStrayArgs:false,	// Not supported
+		helpInput:null,
+		helpOutput:null,
+		Actions:[],
+		Options:[
+			['-o', "output", "", "yes"]
+		]
+	};
 	
-	//---------------------------------------------------;
-	// - User set params
-	//---------------------------------------------------;
-	// Set these vars on the overrided init() function.
+	// Holds Array of all inputs
+	// In case of Wildcards (*.*) they are going to be processed in place
+	// and the fetched files will populate the array
+	var argsInput:Array<String> = [];
 	
-	// Does the program requires an action to be set
-	var flag_param_require_action:Bool = false;
-	// Set the Rules of requiring input and outputs
-	// [ no, yes, opt, multi]
-	var require_output_rule:String = "no";
-	var require_input_rule:String = "no";
+	// Holds argument Output <string> can be file or folder etc
+	var argsOutput:String = null;
 	
-	var support_multiple_inputs:Bool = false;
-
-	// Use can set these, for a brief description of the input
-	// . You can use format tags to these, like colors etc.
-	// . You can use \n for a newline.
-	var help_text_input:String = null;
-	// . and the output help text, same rules as help_text_input
-	var help_text_output:String = null;
+	// Holds all argument <options>
+	// - Option Names are Fields
+	// - Option Value is parameter, or Bool (set or not)
+	var argsOptions:Dynamic = {};
 	
-	// Some program info
-	var info_program_name:String = "UnnamedApp";
-	var info_program_version:String = "0.0";
-	var info_program_desc:String = "";
-	var info_author:String = "";
+	// Holds the currently enabled <action>
+	// Holds Action.NAME ( second Array index )
+	var argsAction:String = null;
 	
-	//----------------------------------------------------;
-	// FUNCTIONS
-	//----------------------------------------------------;
 	
 	/**
-	 * @IMPORTANT--
-	 * Don't Initialize anything on new()
-	 * override the init() function instead
+	 * 
 	 */
 	public function new() 
 	{
-		// -- Init Basic --
-
 		LOG.init();
-
-		BaseApp.global_terminal = new Terminal();
-		t = BaseApp.global_terminal;
-			
-		executable_name = Path.basename(Node.process.argv[1]);
-		params_Options = new Map();
-		params_Input = new Array();
-		params_Accept = new Map();
-		params_autoActionExt = new Array();
-			
-		Node.process.once("exit", onExit);
-		Node.process.once("SIGINT", function() { flag_force_exit = true; Sys.exit(1); } );
+		TERMINAL = new Terminal();
+		T = TERMINAL;
 		
-		// -- Start execution --
+		// Normal Exit, code 0 is OK, other is Error
+		Node.process.once("exit", function(code) {
+			onExit();
+			LOG.log("==> [EXIT] with code " + code);
+		});
 		
-		// - Catches errors, 
-		Node.process.once("uncaughtException", function(err:Dynamic) {
-			// Callstack is kind of useless, since it points to the compiled file??
-			//#if debug
+		// User pressed CTRL+C
+		Node.process.once("SIGINT", function() { Sys.exit(1); } );
+		
+		// Can also be user errors that bubbled up here.
+		// Critical Error, will exit the program
+		Node.process.once("uncaughtException", function(err:Dynamic) 
+		{
+				//#if debug
+				//+ This info isn't really useful?
 				//var ss = CallStack.toString(CallStack.callStack().slice(0, 6));	// Get the last 6 stacks
 				//LOG.log("Callstack:\n" + Std.string(ss), 4);
-				//t.printf('~!~~yellow~ - CALLSTACK - ~!~');
-				//t.print(Std.string(ss)).endl();
-
-			//#end
-			LOG.log("Critical Error", 4);
-			LOG.logObj(err, 4);
-			criticalError(err.message);
+				//T.printf('~!~~yellow~ - CALLSTACK - ~!~');
+				//T.print(Std.string(ss)).endl();
+				//#end
+				
+				LOG.log("Critical Error", 4);
+				
+				if (Std.is(err, Error)) {
+					LOG.logObj(err, 4);
+					exitError(err.message);
+				}	
+					LOG.log(err, 4);
+					exitError(err);
 		});
-			
-		init();
-	
-		LOG.log('Creating Application [ $info_program_name ,v$info_program_version ]');
-		
-		create(); 
-	
-		// If the build is on debug, the program will wait a CTRL+C to exit
-		// If release, the program will exit normally
-	}//---------------------------------------------------;
-	
-	/** 
-	 * User program entry point
-	 * Override this.
-	 */
-	function create():Void
-	{
-	}//---------------------------------------------------;
 
-	/**
-	 * This gets and inits the parameters passed to the program
-	 * @Override to set custom parameters BUT DO IT BEFORE CALLING SUPER.INIT()
-	 */
-	function init():Void
-	{
-		LOG.log("Initializing BaseApp");
-		
-		addParam('-help', "Display Usage info", "This screen", false, false, true);
-		addParam('-o',    "output", "Set the output for the app", true);
-	
-		// Format the helper text, so that they line up properly
-		if (help_text_input != null)
-		help_text_input =  "\t " + ~/(\n)/g.replace(help_text_input, "\n\t ");
-		
-		if (help_text_output != null)
-		help_text_output = "\t " + ~/(\n)/g.replace(help_text_output, "\n\t ");
-	
-		// - This is an odd way of getting  
-		//   the parameter errors but it works well.
-		try {
-			getParameters();
+		// -- Start --
+		try{
+			init();
 		}catch (e:String) {
-			if (e == "HELP") {
-				showUsage();
-				Sys.exit(1);
-			}
 			printBanner(true);
-			criticalError(e, true);
+			if (e == "HELP") { printHelp(); Sys.exit(0); }
+			exitError(e, true); // this will also exit
 		}
+		
+		onStart();
 		
 	}//---------------------------------------------------;
 	
 	/**
-	 * Adds a parameter to expect on program execution
-	 * Action or Option
-	 * The program can perform ONE action at a time,
-	 * but many options at once
-	 * 
-	 * @param	command	The string to trigger this parameter [ -option, action ]
-	 * @param	name Short name of the action or option
-	 * @param	description A brief description, [ use "#nl" markup for next line ]
-	 * @param	requireValue (bool) if a value is expected after this // false
-	 * @param	isDefault (bool) If program will always set this to apply // false
-	 */
-	function addParam(command:String, name:String, ?description:String, 
-						?requireValue:Bool, ?isDefault:Bool, hidden:Bool = false):Void
+	  Read Program Arguments, and initialize
+	  User must have set ARGS and PROGRAM_INFO before calling this
+	  @throw Argument Errors
+	**/
+	function init()
 	{
-		// Safeguard, check parameter, useful only in development.
-		#if debug
-		var reg = ~/([\s\r\n])/g;
-		if (reg.match(command)) {
-			throw "Command string must contain no whitespace or new line char";
-		}
-		#end
+		// Just in case the program starts with non-standard colors
+		T.reset();
 		
-		var p = new AcceptedArgument();
-			if (command.substr(0, 1) == "-") {
-				p.type = "option"; 
-				_number_of_options++;
-				p.requireValue = (requireValue == true); //Avoid it being null
-			}else {
-				p.type = "action";
-				_number_of_actions++;
-				p.requireValue = false; // Assert that actions NEVER require a parameter
-			}
-			
-			p.command = command;
-			p.hidden = hidden;
-			p.name = name;
-			p.description = (description != null) ? description : "...";
-			p.description = ~/#nl/g.replace(p.description, "\n\t");
-			p.isdefault = (isDefault == true);	// Avoid null
-			params_Accept.set(command, p);	
-	}//---------------------------------------------------;
-
-	// --
-	// Get The value of an option parameter
-	// An option parameter start with a dash "-t";
-	// You should call this WITH the dash as well.
-	function getOptionParameter(opt:String):String
-	{
-		if (params_Options.exists(opt))
-			return params_Options.get(opt).parameter;
-		else
-			return null;
-	}//---------------------------------------------------;
-	
-	// Autosets the action according to the input file extention
-	// Be careful!, 
-	// - only one action per entry and only once
-	// - If multiple files it will only consider the first of the inputs,
-	//   so you have to double check for integrity.
-	//
-	// #USER CALL FROM DERIVED BASEAPP
-	//
-	// e.g.
-	//      this will match the "ecm" filename to the action named "fix"
-	// 		setActionByFileExt("fix", ["ecm"]);
-	// --
-	function setActionByFileExt(action:String, fileExtensions:Array<String>):Void {
-		var str = action;
-		for (i in fileExtensions) {
-			str += ',' + i.toLowerCase();
-		}
-		params_autoActionExt.push(str);
-	}//---------------------------------------------------;
-
-	//---
-	function getParameters()
-	{
-		LOG.log("Getting Parameters", 1);
+		// -- Shortcuts
+		var P = PROGRAM_INFO;
+		var A = ARGS;
 		
-		var cc:Int = 2;
-		var arg:String = Node.process.argv[cc];
+		LOG.log('Creating Application [ ${P.name} ,v${P.version} ]');
 		
-		//-- Get Arguments 
-		// ===========================
-		
-		while ( arg != null)
-		{
-			if (params_Accept.exists(arg)) 
+		// -- Read Arguments ::
+		var cc:Int = 2; // Start Reading from index 2. The first real user argument
+		var arg:String;
+		while ( (arg = Node.process.argv[cc++]) != null)
+		{			
+			// # <option>, options start with `-`
+			if (arg.charAt(0) == "-")
 			{
-				if (arg == "-help") throw "HELP";
-				
-				var par = params_Accept.get(arg);
-				
-				if (par.type == "action")
-					params_Action = par.command;
-				else// if (par.type == "option") // it's always an option.
-				{				
-					// Now if the option requires extra values
-					if (par.requireValue) {
-						var nextArg = Node.process.argv[++cc];
-						if (nextArg == null || params_Accept.exists(nextArg))
-							throw 'Argument $arg requires a parameter';
-						par.parameter = nextArg;
+				// :: Build In <options> 
+				if (arg.toLowerCase().indexOf("-help") == 0) throw 'HELP';
+			
+				var o = getArgOption(arg);
+				if (o == null) throw 'Illegal argument [$arg]';
+				if (o[3] != null) {
+					var nextArg:String = Node.process.argv[cc++];	
+					if (nextArg == null || getArgOption(nextArg) != null) {
+						throw 'Argument [$arg] requires a parameter';
 					}
-					
-					//Assert: check to see if same option exists already
-					if (params_Options.exists(arg)) params_Options.remove(arg);
-						params_Options.set(par.command, par);
-					
-				}//--endif type==option
-					
-			}//--endif argument exists in AcceptedParameters
-			else if (arg.substr(0, 1) == "-") {
-				//Catch type insensitive arguments
-				if (arg.toLowerCase().indexOf("-help") == 0) throw "HELP";
-				throw 'Illegal argument [$arg]';
-				
-			}else {
-				
-				//Since it didn't exist in accepted params, 
-				//it must be an input
-				params_Input.push(arg);
-			}
-			
-			arg = Node.process.argv[++cc];
-		}//--arguments pars
-		
-		
-		//-- Check Arguments 
-		// ===========================
-		
-		// Get the output dir to separate var
-		if (params_Options.exists('-o')) {
-			params_Output = params_Options.get('-o').parameter;
-			// Since I got the var, delete it from the map, I don't need it anymore
-			params_Options.remove('-o');
-		}
-		
-		// Process the default arguments
-		for (i in params_Accept) {
-			if (i.isdefault == true) {
-				if (i.type == "action") 
-					if (params_Action == null) params_Action = i.command;
-				if ( i.type == "option") 
-					if (params_Options.exists(i.command) == false)
-						params_Options.set(i.command, i);
-			}
-		}//--
-		
-		// Check for multiple * inputs.
-		if (params_Input.length>0)
-		if (params_Input[0].indexOf('*') >= 0) {
-			var temp = params_Input[0];
-			params_Input = FileTool.getFileListFromAsterisk(params_Input[0]);
-			if (params_Input.length == 0) {
-				throw "Input '" + temp + "' returned 0 files.";
-			}
-			flag_params_Input_discovered = true;
-		}
-		
-		// Get the autoaction only from the first file of many
-		// - all files should be of the same extension -
-		if (params_Action == null && params_Input[0] != null) {
-			// get the extension of the first file
-			var _ext = Path.extname(params_Input[0].toLowerCase()).substr(1);	
-			for (i in params_autoActionExt) {
-				var str:Array<String> = i.split(',');
-				var _c = 0;
-				// skip the first
-				while (++_c < str.length) {
-					if (str[_c] == _ext)
-						params_Action = str[0];
+					Reflect.setField(argsOptions, o[0].substr(1), nextArg);
+					if (o[0] == "-o") argsOutput = nextArg;
+				}else{
+					Reflect.setField(argsOptions, o[0].substr(1), true);
 				}
-			}
-		}
-		
-		if (params_Action == null && flag_param_require_action == true)
-			throw "Setting an action is required";
-
-		if (require_output_rule == "yes" && params_Output == null)
-			throw "Output is required";
-			
-		if (["yes", "multi"].indexOf(require_input_rule) >= 0 && params_Input.length == 0)
-			throw "Input is required";
-	
-	}//---------------------------------------------------;
-	
-	// Shows Basic program usage.
-	// It auto generates it, by reading the expected arguments
-	// ----------------------------------------------------
-	function showUsage() 
-	{
-		// -- local function
-		function __printUsageParameter(par:AcceptedArgument):Void {
-			if (par.hidden) return;
-			t.fg(Color.white).print(' ${par.command}\t');
-			t.print(par.name).reset();
-			if (par.isdefault) t.fg(Color.yellow).print(" [default]");
-			if (par.requireValue) t.fg(Color.gray).print(" [requires parameter] ");
-			t.fg(Color.darkgray).print('\n\t${par.description}\n').reset();
-		}//---------------------------------
-		
-		function __getInfoTextFromRule(rule:String):String {
-			if (rule == "yes") return "is required.";
-			return "is optional.";
-		}//----------------------------------
-		
-		// Somethings to do before displaying usage:
-		// Testing to remove the -o from usage, it's redundant
-		if (params_Accept.exists('-o')) {
-			params_Accept.remove('-o');
-			_number_of_options--;
-		}
-		
-		//helpers, for input & output info text.
-		var _r1:Bool = null;
-		var _r2:Bool = null;
-		
-		//-- Start printing the info --
-		printBanner(true);
-		var s:String = '\t $executable_name ';
-		if (_number_of_actions > 0) s += '<action> ';
-		if (_number_of_options > 1) s += '<opt> <opt.parameter> ... <opt N>\n\t\t';
-		if (["yes", "opt", "multi"].indexOf(require_input_rule) >= 0) {
-			 _r1 = true;
-			if (support_multiple_inputs)
-				s += '<input> .. <input N> ';
-			else
-				s += '<input> ';
-			
-		}
-		if (["yes", "opt"].indexOf(require_output_rule) >= 0) { 
-			s += '-o <output> '; _r2 = true;
-		}
-		t.printf(' ~green~Program Usage:~!~\n');
-		t.print(s).endl().printf(' ~darkgray~~line2~');
-		
-		// -- Proceed showing infos:
-		
-		if (_r1) {// -- Show the input info
-			t.printf('~yellow~ <input> ~!~');
-			t.print(__getInfoTextFromRule(require_input_rule)).reset();
-			if (help_text_input != null)
-				t.endl().printf(help_text_input);
-			t.endl();
-		}
-		
-		if (_r2) { // -- Show the output info
-			t.printf('~yellow~ <output> ~!~');
-			t.print(__getInfoTextFromRule(require_output_rule)).reset();
-			if (help_text_output != null)
-				t.endl().printf(help_text_output);
-			t.endl();
-		}
-
-		t.printf(' ~darkgray~~line2~');
-		
-		// -- <actions>
-		if (_number_of_actions > 0) {
-		t.printf(" ~magenta~<actions> ~!fg~");
-		t.printf("~darkmagenta~you can set one action at a time ~!~\n");
-		for (i in params_Accept)
-			if (i.type == "action") __printUsageParameter(i);
-		}
-		
-		// -- <options>
-		if (_number_of_options > 1) {	// The first element is always the help, so skip it.
-		t.printf(" ~cyan~<options> ~!fg~");
-		t.printf("~darkcyan~you can set many options~!~\n");
-		for (i in params_Accept)
-			if (i.type == "option") __printUsageParameter(i);
-		}
-		
-		/* UNCOMMENT this to show additional usage info
-		/* =============================================
-		 *
-		if (params_autoActionExt.length>0) {
-			t.fg(Color.darkred).print(" Auto-set actions by input extension:\n");
-			for (i in params_autoActionExt)
-			{
-				var str = i.split(',');
-				var actionName = params_Accept.get(str[0]).name;
-				str.shift();
-				var _pp = str.join(",");
 				
-				t.reset().fg(Color.white).print(' <$actionName> ');
-				t.fg(Color.gray).print(' [$_pp]\n');
+				continue;
 			}
-		} 
-		/* */
+			
+			// # <action>
+			var a = getArgAction(arg);
+			if (a != null)
+			{
+				if (argsAction != null) throw 'You can only set one <action>';
+				argsAction = a[1];
+				continue;
+			}
+			
+			// # <input>
+			// -- Whatever isn't an <action> or <option> is an input
+			argsInput.push(arg);
+			
+		}//- end while ----
 		
-		//t.printf(' ~line~~!~');
-		//t.color(Color.darkgray).print(" (Swatches are Case Sensitive)").reset();
 		
-		useExample();
-	}//---------------------------------------------------;
-
-	
-	function useExample()
-	{
-		// override
-	}//---------------------------------------------------;
-	
-	
-	/**
-	 * Prints the program banner
-	 * 
-	 * @param longer if true, it will print the description and author as well
-	 */
-	function printBanner(longer:Bool=false) /* override this */ 
-	{ 
-		var col = "white";
-		var lineCol = "darkgray";
-		var titletext = '$info_program_name v$info_program_version';
-		t.endl(); // one blank line at first
-		t.printf('== ~$col~$titletext~!~\n');
-		//t.printf(' ~darkgray~~line2~');
-		if (longer && info_program_desc != "") 
-			t.printf(' - $info_program_desc\n');
-		if (longer && info_author != "")
-			t.printf(' - $info_author\n');
-		t.printf(' ~$lineCol~~line~~!~');
-	}//---------------------------------------------------;
-	
-	// Basic progress indication
-	// -------------------------
-	function _logProgress_start(str:String) {
-		t.reset().fg(Color.white).print(str).savePos();
-		t.fg(Color.yellow);	//this is the color for the _updates;
-	}//---------------------------------------------------;
-	function _logProgress_update(str:Dynamic) {
-	  t.restorePos().clearLine(0).print('$str');
-	}//---------------------------------------------------;
-	function _logProgress_end(success:Bool,?customMessage:String) {
-		t.restorePos().clearLine(0);
-		if (success) {
-		 t.fg(Color.green);
-		 if (customMessage == null) customMessage = "[complete]";
-		} else {
-		 t.fg(Color.red);
-		 if (customMessage == null) customMessage = "[fail]";
+		// # Check Arguments :: ------
+		
+		// - Get Input Wildcard
+		for(i in argsInput)
+		{
+			if (i.indexOf('*') >= 0 )
+			{
+				if (argsInput.length > 1){
+					throw 'Multiple Inputs with wildcards are not supported';
+				}
+				
+				argsInput = FileTool.getFileListFromWildcard(i);
+				if (argsInput.length == 0) throw 'Wildcard `$i` returned 0 files';
+				break;
+			}
 		}
-		t.print(customMessage).endl().reset();
-	}//---------------------------------------------------;
-
-	/** 
-	 * Appends to global Logger and displays message on the screen
-	 */
-	function log(msg:String,?pos:PosInfos):Void
-	{
-		LOG.log(msg, 1, pos);
-		t.println(' - $msg');
-	}//---------------------------------------------------;
-
-	/**
-	 * A critical error has occured.
-	 * Stop Program execution.
-	 * TODO: Why is this a function?, inline it?
-	 **/
-	function criticalError(text:String, showHelp:Bool = false):Void
-	{
-	  t.printf('~bg_darkred~~white~ ERROR ~!~ ~red~$text\n');
-	  if (showHelp) {
-		  t.printf('~darkgray~ ~line2~~yellow~ -help ~!~ for usage info\n');		  
-	  }
-	  flag_critical_exit = true;
-	  Sys.exit(1);
-	}//---------------------------------------------------;
 		
+		// - AutoGet Action based on Filename
+		if (argsAction == null && argsInput.length > 0)
+		{
+			// Check if any action has a default extension and set the current active Action
+			var act = getArgAction(null, Path.extname(argsInput[0].toLowerCase()).substr(1));
+			if (act != null) argsAction = act[1];
+		}
+		
+		// - Check Inputs
+		if (argsInput.length == 0 && ["yes", "multi"].indexOf(A.inputRule) >= 0)
+		{
+			throw "Input is required";
+		}
+		
+		// - Check Output
+		if (argsOutput == null && A.outputRule == "yes")
+		{
+			throw "Output is required";
+		}
+		
+		// - Check Actions
+		if (A.requireAction && argsAction == null)
+		{
+			throw "Setting an action is required";
+		}
+		
+	}//---------------------------------------------------;
+	
+	/**
+	 * 
+	**/
+	function onStart()
+	{
+	}//---------------------------------------------------;
+	
+	/**
+	  Called whenever the program exists, normally or with errors
+	  You can override to clean up wh
+	**/
+	function onExit()
+	{
+		LOG.end();
+		T.reset();
+	}//---------------------------------------------------;
+	
+	
+	
 	/**
 	 * Awaits any key and then exits the program
 	 * Useful for preventing terminals from auto-closing.
 	 */
-	function WaitKeyQuit():Void {
-	   var key:Keyboard;
-	   t.fg(Color.darkgray).endl().println("Press any key to quit.");
-	   t.reset();
-	   key = new Keyboard(function(e:String) { Sys.exit(0); } );
-	   key.start();
+	function waitKeyQuit():Void 
+	{
+		T.fg(Color.darkgray).endl().println("Press any key to quit.");
+		T.reset();
+		Keyboard.startCapture(true, function(e:String) { Sys.exit(0); });
 	}//---------------------------------------------------;
 	
 	/**
-	 * Auto called whenever program exits,
-	 **/
-	function onExit():Void
+		Shows Basic program usage.
+		Autogenerated based on `ARGS` object
+		-- Example Output , goto [A0001]
+	**/
+	function printHelp()
 	{
-		if (flag_force_exit)
-			LOG.log("App Quit - User Quit");
-		else
-			LOG.log("App Quit -  Normally");
+		var A = ARGS;
+		
+		// -- Some Local Functions ::
+		
+			function __getInfoRule(rule:String):String {
+				return(rule == "opt"?"is optional.":"is required.");
+			}//----------------------------------
+			function __fixDescFormat(s:String):String{
+				if (s.length > 0){
+					return ~/(\n)/g.replace(s, "\n\t");
+				}else{
+					return "...";
+				}
+			}//----------------------------------
 			
-		LOG.end();
-		t.reset();
+		// -- Prepare some things to be printed ::
+		
+			// -- Modify some fields to correct spacings
+			if (A.helpInput != null){
+				A.helpInput = "~darkgray~\t " + ~/(\n)/g.replace(A.helpInput, "\n\t ");
+			}
+			if (A.helpOutput != null){
+				A.helpOutput = "~darkgray~\t " + ~/(\n)/g.replace(A.helpOutput, "\n\t ");
+			}
+			
+			// - Remove the `-o` option from expected parameters
+			//	 I need to do this so it won't get printed
+			//   its always the first element, and this function is only called once.
+			A.Options.shift();	
+			
+			// - Fix <action> and <option> descriptions
+			for (a in A.Actions) a[2] = __fixDescFormat(a[2]);
+			for (a in A.Options) a[2] = __fixDescFormat(a[2]);
+			
+		
+		// -- Start Printing ::
+		
+		T.printf(' ~green~Program Usage: ~!~ \n');
+		
+		var s:String = '   ${PROGRAM_INFO.executable} ';
+		if (A.Actions.length > 0) 	s += "<action> ";
+		if (A.Options.length > 0) 	s += "-<option> <parameter> ...\n      ";
+		if (A.inputRule != "no") {
+			s += "<input> ";
+			if (A.inputRule == "multi") s += "... ";
+		}
+		if (A.outputRule != "no"){
+			s += "-o <output> ";
+		}
+		T.print(s).endl().printf("~darkgray~ ~line2~");
+		
+		// -- 
+		if (A.inputRule != "no") {
+			T.printf('~yellow~ <input> ~!~'); 
+			T.print(__getInfoRule(A.inputRule));
+			if (A.inputRule == "multi") T.printf("~darkcyan~ <multiple supported>");
+			T.endl();
+			if (A.helpInput != null) T.printf(A.helpInput).endl();
+		}
+		// --
+		if (A.outputRule != "no") {
+			T.printf('~yellow~ <output> ~!~'); T.print(__getInfoRule(A.outputRule)).endl();
+			if (A.helpOutput != null) T.printf(A.helpOutput).endl();
+		}
+		
+		T.printf(' ~darkgray~~line2~');
+		T.reset();
+		
+		// - Print <actions>
+		if (A.Actions.length > 0) {
+			T.printf(" ~magenta~<actions> ~!fg~");
+			T.printf("~darkmagenta~you can set one action at a time ~!~\n");
+			for (i in A.Actions) {
+				T.printf('~white~ ${i[0]}\t ${i[1]}');
+				if (i[3] != null) T.printf('  ~gray~ Auto Ext : (${i[3]})');
+				T.printf('\n\t~darkgray~ ${i[2]}\n').reset();
+			}
+		}// --
+		
+		// - Print <options>
+		if (A.Options.length > 0) {
+			T.printf(" ~cyan~<options> ~!fg~");
+			T.printf("~darkcyan~you can set many options~!~\n");
+			for (i in A.Options) {
+				T.printf('~white~ ${i[0]}\t ${i[1]}');
+				if (i[3] != null) T.printf('~gray~ [requires parameter] ');
+				T.printf('\n\t~darkgray~ ${i[2]}\n').reset();
+			}
+		}// --
+		
 	}//---------------------------------------------------;
-
+	
+	function printBanner(longer:Bool = false)
+	{
+		var P = PROGRAM_INFO;
+		var col = "white"; var lineCol = "darkgray"; 
+		T.endl(); // one blank line at first
+		T.printf('== ~$col~${P.name} v${P.version}~!~\n');
+		//t.printf(' ~lineCol~~line2~');
+		if (longer && P.desc != null) 
+			T.printf(' - ${P.desc}\n');
+		if (longer && P.author != null)
+			T.printf(' - ${P.author}\n');
+		T.printf(' ~$lineCol~~line~~!~');
+	}//---------------------------------------------------;
+	
+	
+	/**
+	 **/
+	function exitError(text:String, showHelp:Bool = false):Void
+	{
+		T.printf('~bg_darkred~~white~ ERROR ~!~ ~red~$text\n');
+		if (showHelp) T.printf('~darkgray~ ~line2~~yellow~ -help ~!~ for usage info\n');
+		Sys.exit(1);
+	}//---------------------------------------------------;
+	
+	// Search an <OPTION> object on the ARGS object
+	function getArgOption(tag:String):Array<String>
+	{
+		for (o in ARGS.Options) { if (o[0] == tag) return o; }
+		return null;
+	}//---------------------------------------------------;
+	// --
+	// Search an <ACTION> object on the ARGS object
+	function getArgAction(?tag:String,?ext:String):Array<String>
+	{
+		for (a in ARGS.Actions){
+			// Search by same tag
+			if (tag != null && a[0] == tag) return a; 
+			// Search by same ext
+			if (ext != null && a[3] != null) {
+				if (a[3].split(',').indexOf(ext.toLowerCase()) >= 0) return a;
+			}
+		}
+		return null;
+	}//---------------------------------------------------;
+	
 }//--end class--//
 
 
 
 /**
- * Basic Term application helper
- * Provides easy Argument parsing and 
- * basic logging functions
- * -------------------------------------------------
- */
-
-class AcceptedArgument 
+   Application Information
+   Typedef for BaseApp.PROGRAM_INFO object
+**/
+typedef AppInfo = 
 {
-	public var isdefault:Bool;		// if true, then this will always apply.
-	public var hidden:Bool;			// show this param on the HELP screen
-	public var command:String;		// Text string, e,g, "-x".
-	public var name:String;			// Full name of parameter, e.g. "Extract".
-	public var type:String;			// [action,option]
-	public var description:String;	// Brief description.
-	public var parameter:String;	// optional parameter for option.
-	public var requireValue:Bool;	// if true, this option requires a value afterwards.
+	name:String,		// Name
+	?desc:String,		// Description
+	?version:String,	// Version
+	?author:String,		// Author
+	?contact:String,	// Contact Info
+	?date:String,		// Build Date
+	?executable:String	// Name of the executable
+};
+
+
+
+/**
+   Application Arguments 
+   Typedef for BaseApp.ARGS object
+**/
+typedef AppArguments = 
+{
 	
-	public function new() { }
-}//----------------------------------------------
+	inputRule:String,		// no, yes, opt, multi
+	outputRule:String,		// no, yes, opt
+	
+	requireAction:Bool,		// An action IS required, either be implicit setting or by file extension
+	
+	supportWildcards:Bool,	// If true, <*.*> and <*.ext> will be resolved. Else ERROR
+	
+	supportStrayArgs:Bool,	// If true, program will not ERROR on undeclared <actions,options>
+							// # NOT IMPLEMENTED ! !
+	
+							// # For these two . use "\n" for linebreaks.
+	helpInput:String,		// Help text displayed for <input> on the the -help screen
+	helpOutput:String,		// Help text displayed for <input> on the the -help screen
+	
+	Actions:Array<Array<String>>,	// Holds Actions in an array of arrays.
+									//
+									// [ActionID, ActionName, ActionDescription, Extensions]
+									//  string,   string,     string,			 string
+									//
+									// e.g. ["e","Extract","Extracts input file into output folder"] =>
+									//			node app.js e archive.zip -o c:\
+									//
+									// `Extensions` ("" for none)
+									// - Will AutoAssociate an extension with an action, so if you
+									//   skip setting an action, it can be guessed by the input file
+									//   extension.
+									// - Separate multiple extensions with a comma (,)
+									// - Null (don't set) for no extensions
+									//
+									// - e.g. ["e","Extract","Extracts file", "zip,7z"] =>
+									//		node app.js input.zip 
+	
+									
+	Options:Array<Array<String>>   // Holds Options in an array of arrays.
+									//
+									// [ OptionID, OptionName, OptionDescription, RequireValue ]
+									//   string,   string,     string,            String
+									//
+									// e.g. ["-t","Temp","Set Temp Folder","1"] => 
+									//			node app.js -t c:\temp\
+									//      ["-q","Quick","Quick operation mode",false] =>
+									//			node app.js -q
+									// `RequireValue`
+									// 	This option requires an additional parameter (just one)
+									//  Set any string for YES, e.g. "yes"
+};
+
+
+
+
+
+/* [A0001] - Example PrintHelp() output :
+	
+== CD Crush v1.1.2
+ - Dramatically reduce the filesize of CD image games
+ - JohnDimi, twitter@jondmt
+ --------------------------------------------------
+ Program Usage:
+		 app <action> -<option> <parameter> <option2> ..
+				<input> <input2> ... -o <output>
+ -------------------------
+ <input> is required.
+		 Action is determined by input file extension.   <-- USER set
+		 Supports multiple inputs and wildcards (*.cue)	 <-- USER set
+ <output> is optional.
+		 Specify output directory.						 <-- USER set
+ -------------------------
+ <actions> you can set one action at a time
+ c      Crush
+		Crush a cd image file (.cue .ccd files)
+ r      Restore
+		Restore a crushed image (.arc files)
+ <options> you can set many options
+ -t     Temp Directory [requires parameter]
+		Set a custom working directory
+ -f     Restore to Folders
+		Restore ARC files to separate folders
+ -q     Audio compression quality [requires parameter]
+		1 - Ogg Vorbis, 96kbps VBR
+		2 - Ogg Vorbis, 128kbps VBR
+		3 - Ogg Vorbis, 196kbps VBR
+		4 - FLAC, Lossless
+ */

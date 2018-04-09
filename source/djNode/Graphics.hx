@@ -1,13 +1,17 @@
+/**
+ * Terminal Graphics
+ * ---------------
+ * 
+ * - Draws simple graphics on the terminal
+ * - Boxes, Lines, Borders
+ * 
+**/
+
 package djNode;
 
 import djNode.Terminal;
 
-/**
- * Static class Graphics
- * -----
- * Draws simple graphics on the terminal
- * Boxes, lines, borders, etc
- */ 
+
 class Graphics
 {
 	static var _isInited(default,null):Bool = false;
@@ -44,7 +48,7 @@ class Graphics
 		if (_isInited) return;
 		
 		// Create a pointer
-		t = BaseApp.global_terminal;
+		t = BaseApp.TERMINAL;
 		
 		//-- set the border styles here
 		borderStyles = new Array();
@@ -162,7 +166,6 @@ class Graphics
 			t.move(x, y + i);
 			t.print(ar[i]);
 		}
-		
 	}//---------------------------------------------------;
 	
 	/** 

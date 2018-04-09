@@ -6,9 +6,8 @@ package djNode.tools;
  * @singleton
  */
 
-class Calc
+class MathTool
 {
-	
 	/**
 	 * Return a random number which is in between a range
 	 * 
