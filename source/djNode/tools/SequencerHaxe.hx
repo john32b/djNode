@@ -11,7 +11,7 @@
  * 02-2015. rewritten
  * 
  *********************************************************/
-package djFlixel;
+package djNode.tools;
 import haxe.Timer;
 
 // TODO:

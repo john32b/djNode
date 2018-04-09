@@ -4,7 +4,7 @@
  * johndimi, johndimi@outlook.com
  * -------
  * @requires: [Arc.exe]
- * @supportedplatforms: nodeJS
+ * @supports: nodeJS
  * @architectures: Windows
  * 
  * FreeArc is a modern general-purpose archiver. 
@@ -25,7 +25,7 @@ import js.Node;
 import js.node.Path;
 
 
-class Arc extends CLIApp implements IArchiver
+class Arc extends CLIApp
 {
 	// Require 'Arc.exe' on executable path
 	static var WIN32_EXE:String = "Arc.exe";
@@ -180,7 +180,7 @@ class Arc extends CLIApp implements IArchiver
 	----------------------------------------
 	8 files, 16,453,544 bytes, 14,843,058 compressed
 	All OK
------------------------------------*/*/
+-----------------------------------*/
 	
 
 

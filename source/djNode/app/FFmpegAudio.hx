@@ -4,9 +4,8 @@
  * johndimi, johndimi@outlook.com
  * -------
  * @requires: [FFmpeg.exe]
- * @supportedplatforms: nodeJS
+ * @supports: nodeJS
  * @architectures: Windows
- * 
  * 
  *  - Reports progress with events
  * 	- Encode to PCM
