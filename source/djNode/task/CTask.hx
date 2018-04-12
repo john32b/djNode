@@ -7,7 +7,7 @@
    
 package djNode.task;
 
-import djNode.app.CLIApp;
+import djNode.utils.CLIApp;
 import js.Error;
 
 
@@ -139,7 +139,7 @@ class CTask
 		if (quickRun != null) quickRun(this);
 	}//---------------------------------------------------;
 		
-	// Call this from the extended class or a quickrun to indicate task completion
+	// Can also be called from quickTasks
 	// -
 	public function complete()
 	{
@@ -148,6 +148,8 @@ class CTask
 		if (onComplete != null) onComplete();
 	}//---------------------------------------------------;
 
+	// Can also be called from quickTasks
+	// --
 	public function fail(message:String)
 	{
 		ERROR = new Error(message);
@@ -155,15 +157,19 @@ class CTask
 	}//---------------------------------------------------;
 	
 	
-	public function kill()
+	// Automatically called whenever completed or failed
+	// -
+	@:allow(djNode.task.CJob)
+	function kill()
 	{
 		if (killExtra != null) killExtra();
 	}//---------------------------------------------------;
 	
-	
+	// Quick information
+	// --
 	public function toString():String
 	{
-		return 'UID:$uid, NAME:$name' + (desc == null?'':', DESC:$desc');
+		return 'UID:$uid, ($name)' + (desc == null?'':' `$desc`' + ' SLOT:$SLOT , ASYNC:$async');
 	}//---------------------------------------------------;
 	
 	

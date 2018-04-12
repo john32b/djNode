@@ -2,35 +2,47 @@
 	Test Task
 	----------
 	Simulated task for debugging/development purposes
+	
+	Example:
+	
+		job.add(new CTestTask(1000,10,"CompressingFake"));
+	
 **/
+	
 package djNode.task;
 import js.Node;
 
 
 class CTestTask extends CTask
 {
-	public function new(time:Int = 2000, steps:Int = 10, Name:String = null) 
+	
+	/**
+	   
+	   @param	time Total time of the task
+	   @param	tick Report back progress every this many milliseconds
+	   @param	Name
+	**/
+	public function new(time:Int = 2000, Name:String = null, tick:Int = 200) 
 	{
 		super(null, name, "Fake Task");
+		
 
-		var every:Int = Std.int(time / steps);
-		var progressInc = Math.ceil(100.0 / steps);
-		var triggers = 0;
+		var timesToTick:Int = Math.ceil(time / tick);
+		var progressInc = Math.ceil(100.0 / timesToTick);
+		
 		var timer:IntervalObject;
 		
 		quickRun = function(t){
 			
 			timer = Node.setInterval(function(){
 				
-				if (++triggers == steps){
-					complete();
+				if (--timesToTick == 0){
 					Node.clearInterval(timer);
-					timer = null;
+					complete();
 				}
 				else
 					PROGRESS += progressInc;
-			},every);
-			
+			},tick);
 		};
 	}//---------------------------------------------------;
 	

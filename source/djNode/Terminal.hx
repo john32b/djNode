@@ -20,6 +20,7 @@
  * 				http://ascii-table.com/ansi-escape-sequences.php
  *  			http://www.termsys.demon.co.uk/vtansi.htm
  *  			http://misc.flogisoft.com/bash/tip_colors_and_formatting
+ * 				http://pueblo.sourceforge.net/doc/manual/ansi_color_codes.html
  *  
  *  # CS in developemnt
  *  # CPP in development
@@ -60,7 +61,6 @@ import StringTools;
 #end
 
 
-
 /*
  * Supported Terminal colors
  **/
@@ -85,7 +85,6 @@ class Terminal
 	// VARS
 	//====================================================;
 
-	#if (js || cpp || neko) //-- Color system with escape sequences
 	// Map colors to escape codes
 	private var colormap_fg:Map<Color,String>;
 	private var colormap_bg:Map<Color,String>;	
@@ -116,9 +115,6 @@ class Terminal
 		Color.magenta, Color.darkmagenta, Color.yellow, Color.darkyellow
 	];
 	
-	#end
-
-	
 	//---------------------------------------------------;
 	// -- User overridable
 	//---------------------------------------------------;
@@ -139,7 +135,6 @@ class Terminal
 	
 	public function new() 
 	{ 
-		#if (js || cpp || neko)
 		// Set the foregrounds
 		colormap_fg = new Map();		
 		colormap_fg.set(Color.darkgray, 	'\x1B[90m');
@@ -176,7 +171,6 @@ class Terminal
 		colormap_bg.set(Color.darkmagenta, 	'\x1B[45m');
 		colormap_bg.set(Color.darkcyan, 	'\x1B[46m');
 		colormap_bg.set(Color.gray, 		'\x1B[47m');
-		#end 
 	
 	}//---------------------------------------------------;
 	
@@ -187,35 +181,27 @@ class Terminal
 	 */
 	public function demoPrintColors():Void
 	{
-		#if cs
-			H1("Color Demo not supported in CS.");
-			return;
-		#end
-		
-		var startingY = 3;
-		var startingX = 5;
 		var distanceBetweenColumns = 15;
-		var cc = startingY;
+		println("Available Colors").drawLine();
 		
-		clearScreen();
-		move(1, 1);
-		drawLine().println("Color Demonstration").drawLine();
+		savePos();
 		
 		//-- Draw the foreground colors
 		for (i in AVAIL_COLORS) {
-			move(startingX, ++cc);
 			if (i == Color.black) bg(Color.gray); else bg(Color.black);
 			fg(i).print(i).endl().resetFg();
 		}
 		
-		cc = startingY; 
 		reset();
+		restorePos();
+		
 		//-- Draw the background colors:
 		for (i in AVAIL_COLORS) {
-			move(startingX + distanceBetweenColumns, ++cc);
+			forward(distanceBetweenColumns);
 			if (i == Color.white || i == Color.yellow) fg(Color.darkgray); else fg(Color.white);
 			bg(i).print(i).endl().resetBg();
 		}
+		
 		drawLine();
 	}//---------------------------------------------------;
 	
@@ -253,13 +239,15 @@ class Terminal
 	 */
 	public inline function print(str:String):Terminal
 	{
-		#if js
-			Node.process.stdout.write(str);
-		#elseif cpp
-			Lib.print(str);
-		#else
-			Sys.print(str);
-		#end
+		Sys.print(str);
+		
+		//#if js
+			//Node.process.stdout.write(str);
+		//#elseif cpp
+			//Lib.print(str);
+		//#else
+			//Sys.print(str);
+		//#end
 		
 		return this;
 	}//---------------------------------------------------;
@@ -280,15 +268,8 @@ class Terminal
 	 */
 	public function fg(?col:Color):Terminal
 	{
-		#if (js || cpp || neko)
-			if (col == null) return resetFg();
-			return print(colormap_fg.get(col));
-		#elseif cs
-			Console.ForegroundColor = ConsoleColor.Red;
-			return this;
-		#else
-			return this;
-		#end
+		if (col == null) return resetFg();
+		return print(colormap_fg.get(col));
 	}//---------------------------------------------------;
 	
 	/**
@@ -297,22 +278,14 @@ class Terminal
 	 */
 	public function bg(?col:Color):Terminal
 	{
-		#if (js || cpp || neko)
-			if (col == null) return resetBg();
-			return print(colormap_bg.get(col));
-		#else
-			return this;
-		#end
+		if (col == null) return resetBg();
+		return print(colormap_bg.get(col));
 	}//---------------------------------------------------;
 
 	// This is mostly unused.
 	public function bold():Terminal
 	{
-		#if (js || cpp || neko)
-			return print(_BOLD);
-		#else
-			return this;
-		#end
+		return print(_BOLD);
 	}//---------------------------------------------------;
 
 	//--- Resets ---//
@@ -325,15 +298,9 @@ class Terminal
 	 */ 
 	public inline function reset():Terminal			
 	{ 
-		#if (js || cpp || neko)
-			return print(_RESET_ALL);
-		#elseif cs
-			Console.ResetColor();
-			Console.ForegroundColor = ConsoleColor.White;
-			return this;
-		#else
-			return this;
-		#end
+		return print(_RESET_ALL);
+		//Console.ResetColor();
+		//Console.ForegroundColor = ConsoleColor.White;
 	}//---------------------------------------------------;
 	
 	/**
@@ -358,15 +325,13 @@ class Terminal
 	/**
 	 * Moves the cursor to a specific X and Y position on the Terminal
 	 */
-	public inline function move(x:Int, y:Int):Terminal
+	public function move(x:Int, y:Int):Terminal
 	{
-		#if (js || cpp || neko)
-			return print('\x1B[${y};${x}f');
-		#elseif cs
-			Console.SetCursorPosition(x, y); 
+		#if cs
+			Console.SetCursorPosition(x, y);
 			return this;
 		#else
-			return this;
+			return print('\x1B[${y};${x}f');
 		#end
 	}//---------------------------------------------------;
 	
@@ -394,8 +359,8 @@ class Terminal
 	 */
 	public function pageDown():Terminal
 	{
-		print(StringTools.lpad("", "\n", getHeight() + 1));
-		return move(1, 1);
+		return savePos().print(StringTools.lpad("", "\n", getHeight() + 1)).restorePos();
+		// return move(1, 1);
 	}//---------------------------------------------------;
 
 	/**
@@ -415,6 +380,21 @@ class Terminal
 	public function clearLine(?type:Int):Terminal
 	{
 		return print('\x1B[' + Std.string((type != null) ? type : 2) + 'K');
+	}//---------------------------------------------------;
+	
+	/**
+	 * Clears the screen and positions the cursor to (1,1)
+	 * @param ?type 0-Clear all forward, 1-Clear all back, 2-Clear entire screen(default)
+	 */
+	public function clearScreen(?type:Int):Terminal
+	{
+		#if cs
+			Console.Clear();
+			return this;
+		#else
+			return print('\x1B[' + Std.string((type != null) ? type : 2) + 'J');
+			// if (type == null || type == 2) move(1, 1); return this; // whole line might be redundant
+		#end
 	}//---------------------------------------------------;
 	
 	//====================================================;
@@ -529,21 +509,5 @@ class Terminal
 		}));
 	}//---------------------------------------------------;
 	
-	
-	/**
-	 * Clears the screen and positions the cursor to (1,1)
-	 * @param ?type 0-Clear all forward, 1-Clear all back, 2-Clear entire screen(default)
-	 */
-	public function clearScreen(?type:Int):Terminal
-	{
-		#if (js || cpp || neko)
-			return print('\x1B[' + Std.string((type != null) ? type : 2) + 'J');
-			// if (type == null || type == 2) move(1, 1); return this; // whole line might be redundant
-		#elseif cs
-			Console.Clear();
-			return this;
-		#end
-			return this;
-	}//---------------------------------------------------;
-	
+
 }//-- end class--//

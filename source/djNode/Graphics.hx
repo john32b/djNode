@@ -171,15 +171,10 @@ class Graphics
 	/** 
 	 * Draws a simple Progress bar
 	 */
-	public static function drawProgressBar(x:Int, y:Int, width:Int, percent:Int)
+	@:deprecated("Use ProgressBar.hx")
+	public static function drawProgressBar(x:Int, y:Int, width:Int, percent:Float)
 	{
-		_r1 = Math.ceil( (width / 100) * percent);
-		// TODO: Parameterize the symbols for bg and fg ("#","-")
-		_s1 = StringTools.lpad("", " ", _r1);    		// downloaded bytes
-		_s2 = StringTools.rpad("", "-", width - _r1);	// blank 
-		// -precalculate the color string-
-		if (_s3 == null) _s3 = t.sprintf('~!~~darkgray~~bg_gray~');
-		t.move(x, y).print('$_s3$_s1').resetBg().print(_s2);
+		ProgressBar.draw(x, y, width, percent);
 	}//---------------------------------------------------;	
 
 	

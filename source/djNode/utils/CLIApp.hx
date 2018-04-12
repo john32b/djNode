@@ -13,7 +13,7 @@
  * 
  * ---------------------------------------*/
 
-package djNode.app;
+package djNode.utils;
 
 import djNode.tools.LOG;
 import js.Node;
@@ -33,12 +33,9 @@ class CLIApp
 	// The process
 	var proc:ChildProcessObject;
 	
-	// Keep the executable name (e.g. "ffmpeg.exe");
-	var exe_name:String;
-	
 	// Keep the FULL path of the executable (e.g. "c:\bin\ffmpeg.exe")
-	var exe_full:String;
-	
+	// This is what will be executed
+	var exePath:String;
 	
 	// #USERSET
 	// Set before starting the process
@@ -51,11 +48,10 @@ class CLIApp
 	   Create
 	   @param	exec The executable FULL PATH or RELATIVE PATH
 	**/
-	public function new(exec:String) 
+	public function new(?exec:String) 
 	{
 		events = new EventEmitter();		
-		exe_name = Path.basename(exec);
-		exe_full = exec;
+		exePath = exec;
  	}//---------------------------------------------------;
 
 
@@ -66,10 +62,10 @@ class CLIApp
 	**/
 	public function start(?arguments:Array<String>, ?workingDir:String)
 	{
-		LOG.log('Process `$exe_name` Start');
+		LOG.log('Process `$exePath` Start');
 		
 		// https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options
-		proc = ChildProcess.spawn(exe_full, arguments);
+		proc = ChildProcess.spawn(exePath, arguments);
 		// Haxe BUG: Can't set Options.
 		// { cwd:workingDir, windowsHide:true });
 		
@@ -94,10 +90,10 @@ class CLIApp
 			
 			if (code != 0 || signal != null) // Error
 			{
-				LOG.log('Process `$exe_name` End - [ ERROR ] `{$signal}`', 3);
+				LOG.log('Process `$exePath` End - [ ERROR ] `{$signal}`', 3);
 				events.emit("close", false, signal);
 			}else{
-				LOG.log('Process `$exe_name` End - [ OK ]');
+				LOG.log('Process `$exePath` End - [ OK ]');
 				events.emit("close", true);
 			}
 			kill();
@@ -119,8 +115,6 @@ class CLIApp
 		
 	}//---------------------------------------------------;
 	
-	
-
 	/**
 	   Free up resources
 	**/
@@ -135,7 +129,6 @@ class CLIApp
 		}
 		
 	}//---------------------------------------------------;
-	
 	
 	// Statics
 	//====================================================;

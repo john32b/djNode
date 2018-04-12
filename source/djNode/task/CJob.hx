@@ -118,7 +118,7 @@ class CJob
 	public var ERROR(default, null):Error;
 
 	// Keep track of whether the job is done and properly shutdown
-	public var IS_KILLED:Bool = false;
+	var IS_KILLED:Bool = false;
 
 	// : NEW :
 	
@@ -256,7 +256,7 @@ class CJob
 	{
 		var t:CTask;
 		
-		t = taskQueue.pop();
+		t = taskQueue.shift();	// Gets the first element
 			t.parent = this;
 			t.dataGet = taskData;
 			t.onStatus = _onTaskStatus;
@@ -271,6 +271,8 @@ class CJob
 		}
 		slots_active[fr] = true;
 		t.SLOT = fr;
+		TASKS_RUNNING ++;
+		
 		LOG.log('Task Start | ${t} | Remaining:${taskQueue.length} | Running:${currentTasks.length}');
 
 		t.start();

@@ -14,9 +14,15 @@
  *  Features will be coming and going
  *  DEBUG < TRACE < INFO < WARN < ERROR < FATAL
  * 
- * Update History
+ * Use Example
  * ----------
- * + Added socket.io logging to a web browser
+ * 
+ * 	// Will push logs to a file and will update it at real time
+ * 	LOG.setLogFile("log.txt",true);	
+ * 
+ * 	// Log something, will be pushed to files/sockets/listeners automatically
+ * 	LOG.log("something happened");
+ * 
  * 
  *********************************************************/
 package djNode.tools;
@@ -26,10 +32,9 @@ import js.node.Fs;
 import js.node.Path;
 
 import haxe.PosInfos;
-import haxe.Timer;
 
-// -- Use the logging function on the debug build only --
-#if debug
+// -- Use the logging function on the debug builds only --
+
 typedef LogMessage = {
 	var pos:PosInfos;
 	var level:Int;
@@ -39,12 +44,16 @@ typedef LogMessage = {
 class LOG 
 {
 	static var _isInited:Bool = false;	
+	
 	// Store logMessages here.
 	static var messages:Array<LogMessage>;
+	
 	// Holds prerendered text for each type of log level
 	static var messageTypes:Array<String>;
+	
 	// Helper var, stores time
 	static var _t:Float;
+	
 	// The socket.io object.
 	static var io:Dynamic = null;
 	
@@ -53,18 +62,24 @@ class LOG
 	// User can set a custom message receiver for log messages
 	// like push all messages to a text window.
 	public static var onLog:LogMessage-> Void = null; 
+	
 	// There are 5 Available logging levels, anything below this will be skipped
 	public static var logLevel:Int = 0;
+	
 	// If this is set, then program logs will write to that file
-	public static var logFile:String = null;
+	static var logFile:String = null;
+	
 	// If true, the logger will write to the log file in realtime, else at the end of the program
-	public static var flag_realtime_file:Bool = true;
+	static var flag_realtime_file:Bool = true;
+	
 	// Use socket.io logging ?
-	public static var flag_socket_log:Bool = false;
+	static var flag_socket_log:Bool = false;
+	
 	// Keep messages in memory?
-	public static var flag_keep_in_memory:Bool = true;
+	static var flag_keep_in_memory:Bool = true;
+	
 	// How many messages to keep in memory, -- Avoid hogging the ram with a huge message log.
-	public static var param_memory_buffer:Int = 8192;
+	static var param_memory_buffer:Int = 8192;
 
 	//====================================================;
 	// FUNCTIONS
@@ -72,20 +87,15 @@ class LOG
 	
 	/* Make sure to set any parameters BEFORE initializing this class 
 	 **/
-	public static function init():Void
+	public static function init(file:String = null, realtime:Bool = false):Void
 	{
 		if (_isInited) return;
-		_isInited = true;
-		messages = new Array();
-		messageTypes = new Array();
-			messageTypes[0] = "DEBUG";
-			messageTypes[1] = "INFO";
-			messageTypes[2] = "WARN";
-			messageTypes[3] = "ERROR";
-			messageTypes[4] = "FATAL";
+			_isInited = true;
 		
-		if (logFile != null) setLogFile(logFile);
-		if (flag_socket_log) setSocketLogging();
+		messages = [];
+		messageTypes = [ "DEBUG", "INFO", "WARN", "ERROR", "FATAL" ];
+		
+		if (file != null) setLogFile(file, realtime);
 	}//---------------------------------------------------;
 	
 	// --
@@ -156,19 +166,9 @@ class LOG
 			push_File( { level:level, pos:pos, log:"---- OBJECT ----\n" + Std.string(obj) } );
 		}
 		
-		if (onLog != null) onLog( { pos:pos, level:level, log : "Logged an object" } );
+		if (onLog != null) onLog( { pos:pos, level:level, log : " OBJECT :: \n" + Std.string(obj) } );
 	}//---------------------------------------------------;
 	
-	/*
-	 * Log a string without writing the posInfos,
-	 * Use this for log bulk actions after a log(), Readability reasons.
-	 **/
-	public static function log_(text:String, level:Int = 1)
-	{
-		/// TODO !!
-	}//---------------------------------------------------;
-	
-
 	
 	/**
 	 * Set Logging through an http Slot,
@@ -178,6 +178,8 @@ class LOG
 	{	
 		//- setup the socket.io debugging
 		if (io != null) return;
+		
+		flag_socket_log = true;
 		
 		io = Node.require('socket.io').listen(port);
 		log("Socket, Listening to port " + port);
@@ -222,9 +224,11 @@ class LOG
 	 */
 	static function push_File(log:LogMessage)
 	{
-		var m = "(" + messageTypes[log.level] + ") " +  
-		log.pos.lineNumber + ":" + log.pos.fileName + " [ " + 
-		log.pos.className + " ]" + " - " + log.log + "\n";
+		var m = 
+			messageTypes[log.level] + " (" +  
+			log.pos.fileName + ":" + log.pos.lineNumber + " ) " +
+			// " [" + log.pos.className + "]" + 
+			log.log + "\n";
 		
 		Fs.appendFileSync(logFile, m, 'utf8');
 	}//---------------------------------------------------;
@@ -235,11 +239,11 @@ class LOG
 	 * @param	filename
 	 * @param	realtime_update If TRUE the file will update in real time, if False the log will be written once the program ends
 	 */
-	public static function setLogFile(filename:String, ?realtime_update:Bool)
+	public static function setLogFile(filename:String, realtime_update:Bool = false)
 	{	
 		// - get params
 		logFile = filename;
-		if (realtime_update != null) flag_realtime_file = realtime_update;
+		flag_realtime_file = realtime_update;
 		
 		// - check log file
 		try { 
@@ -259,11 +263,9 @@ class LOG
 		}//--
 				
 		
-		
 		// There is a case where the log array has data,
 		// write that data to the file.
-		if(flag_realtime_file)
-		if (messages.length > 0 && logFile != null) {
+		if(flag_realtime_file && messages.length > 0 && logFile != null) {
 			for (i in messages) push_File(i);
 		}
 		
@@ -293,22 +295,3 @@ class LOG
 	
 	
 }//- end LOG class --
-
-#else
-
-// -- If this a release build, don't do anything
-// * Using inline functions sets the calling line to blank.
-class LOG  {
-	public static var logFile:String;
-	public static var flag_realtime_file:Bool;
-	public static var flag_socket_log:Bool; 
-	public static inline function init() { }
-	public static inline function setLogFile(filename:String, ?realtime_update:Bool) { }
-	public static inline function log(text:String, ?level:Int, ?pos:PosInfos) { }
-	public static inline function log_(text:String, ?level:Int) { }
-	public static inline function logObj(obj:Dynamic, ?level:Int, ?pos:PosInfos) { }
-	public static inline function getLog():Array<String> { return null; }
-	public static inline function end() { }
-}// --
-
-#end

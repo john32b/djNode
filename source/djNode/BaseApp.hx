@@ -14,8 +14,12 @@
  * Notes:
  * ------------
  * 
+ * 	- Override init() and set ARGS and PROGRAM_INFO there
+ * 
  * Examples:
  * ------------
+ * 
+ * 	
  * 
  ========================================================*/
 package djNode;
@@ -27,11 +31,6 @@ import djNode.Keyboard;
 import djNode.tools.FileTool;
 import djNode.Terminal;
 import djNode.tools.LOG;
-
-#if debug
-	//import haxe.CallStack;
-#end
-
 
 
 class BaseApp
@@ -55,11 +54,11 @@ class BaseApp
 	// #USERSET
 	// Fill this object up, (check the typedef for more info)
 	var ARGS:AppArguments = {
-		inputRule:"yes",
+		inputRule:"opt",
 		outputRule:"opt",	
 		requireAction:false,
 		supportWildcards:true,
-		supportStrayArgs:false,	// Not supported
+		supportStrayArgs:false,	// Not Implemented
 		helpInput:null,
 		helpOutput:null,
 		Actions:[],
@@ -97,8 +96,8 @@ class BaseApp
 		
 		// Normal Exit, code 0 is OK, other is Error
 		Node.process.once("exit", function(code) {
-			onExit();
 			LOG.log("==> [EXIT] with code " + code);
+			onExit();
 		});
 		
 		// User pressed CTRL+C
@@ -110,16 +109,16 @@ class BaseApp
 		{
 				//#if debug
 				//+ This info isn't really useful?
-				//var ss = CallStack.toString(CallStack.callStack().slice(0, 6));	// Get the last 6 stacks
+				//var ss = haxe.CallStack.toString(haxe.CallStack.callStack().slice(0, 6));	// Get the last 6 stacks
 				//LOG.log("Callstack:\n" + Std.string(ss), 4);
 				//T.printf('~!~~yellow~ - CALLSTACK - ~!~');
 				//T.print(Std.string(ss)).endl();
 				//#end
 				
-				LOG.log("Critical Error", 4);
+				LOG.log("Critical Error - ", 4);
 				
 				if (Std.is(err, Error)) {
-					LOG.logObj(err, 4);
+					LOG.log(err.message, 4);
 					exitError(err.message);
 				}	
 					LOG.log(err, 4);
@@ -187,7 +186,7 @@ class BaseApp
 			if (a != null)
 			{
 				if (argsAction != null) throw 'You can only set one <action>';
-				argsAction = a[1];
+				argsAction = a[0];
 				continue;
 			}
 			
@@ -288,7 +287,7 @@ class BaseApp
 				return(rule == "opt"?"is optional.":"is required.");
 			}//----------------------------------
 			function __fixDescFormat(s:String):String{
-				if (s.length > 0){
+				if (s != null && s.length > 0){
 					return ~/(\n)/g.replace(s, "\n\t");
 				}else{
 					return "...";
@@ -371,6 +370,7 @@ class BaseApp
 		}// --
 		
 	}//---------------------------------------------------;
+	
 	
 	function printBanner(longer:Bool = false)
 	{

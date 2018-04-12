@@ -1,4 +1,4 @@
-package djNode.term;
+package djNode.utils;
 
 import djNode.BaseApp;
 import djNode.Keyboard;
