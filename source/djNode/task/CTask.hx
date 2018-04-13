@@ -150,7 +150,7 @@ class CTask
 
 	// Can also be called from quickTasks
 	// --
-	public function fail(message:String)
+	public function fail(?message:String)
 	{
 		ERROR = new Error(message);
 		status = CTaskStatus.fail;
@@ -169,7 +169,7 @@ class CTask
 	// --
 	public function toString():String
 	{
-		return 'UID:$uid, ($name)' + (desc == null?'':' `$desc`' + ' SLOT:$SLOT , ASYNC:$async');
+		return 'UID:$uid "$name"' + (desc == null?'':'($desc)') + ' SLOT:$SLOT , ASYNC:$async';
 	}//---------------------------------------------------;
 	
 	

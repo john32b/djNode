@@ -3,7 +3,7 @@
  * ----------------------------------------------
  * - Useful Terminal functionality wrapper
  * ----------------------------------------------
- * @Author: johndimi, <johndimi@outlook.com>, @jondmt
+ * @Author: johndimi, <johndimi@outlook.com>
  * 
  * Features:
  * ===========
@@ -21,16 +21,15 @@
  *  			http://www.termsys.demon.co.uk/vtansi.htm
  *  			http://misc.flogisoft.com/bash/tip_colors_and_formatting
  * 				http://pueblo.sourceforge.net/doc/manual/ansi_color_codes.html
- *  
- *  # CS in developemnt
- *  # CPP in development
+ * 				http://man7.org/linux/man-pages/man4/console_codes.4.html
+ *
  * 
- * Important !
- * ============
- *    Cursor position (x:1,y:1) starts NOT from the top left of 
- *  the terminal window, but rather the next line of the prompt.
- *    If you want to have (x,y) start at (1,1) of the term window, 
- *  use the pageDown() function. It will guarantee an empty terminal.
+ * 	Cursor Position :
+ * 
+ * 		Pos (x:1,y:1) starts NOT from the top left of the terminal window, 
+ * 		but rather the next line of the prompt.
+ * 		To GUARANTEE a (1,1) position pageDown() first.
+ * 
  * 
  * Examples :
  * ================
@@ -360,7 +359,6 @@ class Terminal
 	public function pageDown():Terminal
 	{
 		return savePos().print(StringTools.lpad("", "\n", getHeight() + 1)).restorePos();
-		// return move(1, 1);
 	}//---------------------------------------------------;
 
 	/**
@@ -460,6 +458,16 @@ class Terminal
 	}//---------------------------------------------------;
 	
 
+	
+	public function cursorHide():Terminal
+	{
+		return print("\x1B[?25l");
+	}//---------------------------------------------------;
+	public function cursorShow():Terminal
+	{
+		return print("\x1B[?25h");
+	}//---------------------------------------------------;
+	
 	/**
 	 * Translates Special inline Tags to Special terminal codes and strings
 	 * Returns the new translated string. Useful to adding color codes.

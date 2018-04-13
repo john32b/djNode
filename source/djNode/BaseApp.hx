@@ -27,6 +27,7 @@ package djNode;
 import js.Error;
 import js.Node;
 import js.node.Path;
+
 import djNode.Keyboard;
 import djNode.tools.FileTool;
 import djNode.Terminal;
@@ -94,6 +95,8 @@ class BaseApp
 		TERMINAL = new Terminal();
 		T = TERMINAL;
 		
+		#if nodejs
+		
 		// Normal Exit, code 0 is OK, other is Error
 		Node.process.once("exit", function(code) {
 			LOG.log("==> [EXIT] with code " + code);
@@ -124,6 +127,8 @@ class BaseApp
 					LOG.log(err, 4);
 					exitError(err);
 		});
+		
+		#end
 
 		// -- Start --
 		try{
@@ -155,9 +160,10 @@ class BaseApp
 		LOG.log('Creating Application [ ${P.name} ,v${P.version} ]');
 		
 		// -- Read Arguments ::
-		var cc:Int = 2; // Start Reading from index 2. The first real user argument
+		var cc:Int = 0;
+		var arguments = Sys.args();
 		var arg:String;
-		while ( (arg = Node.process.argv[cc++]) != null)
+		while ( (arg = arguments[cc++]) != null)
 		{			
 			// # <option>, options start with `-`
 			if (arg.charAt(0) == "-")
@@ -168,7 +174,7 @@ class BaseApp
 				var o = getArgOption(arg);
 				if (o == null) throw 'Illegal argument [$arg]';
 				if (o[3] != null) {
-					var nextArg:String = Node.process.argv[cc++];	
+					var nextArg:String = arguments[cc++];	
 					if (nextArg == null || getArgOption(nextArg) != null) {
 						throw 'Argument [$arg] requires a parameter';
 					}
@@ -257,6 +263,7 @@ class BaseApp
 	{
 		LOG.end();
 		T.reset();
+		T.cursorShow(); // Just in case
 	}//---------------------------------------------------;
 	
 	

@@ -16,16 +16,17 @@ import js.Node;
 class CTestTask extends CTask
 {
 	
+	var flag_fail:Bool = false;
+	
 	/**
 	   
 	   @param	time Total time of the task
 	   @param	tick Report back progress every this many milliseconds
 	   @param	Name
 	**/
-	public function new(time:Int = 2000, Name:String = null, tick:Int = 200) 
+	public function new(time:Int = 2000, Name:String = null, Desc:String = null, tick:Int = 200 )
 	{
-		super(null, name, "Fake Task");
-		
+		super(null, Name, Desc);
 
 		var timesToTick:Int = Math.ceil(time / tick);
 		var progressInc = Math.ceil(100.0 / timesToTick);
@@ -38,7 +39,7 @@ class CTestTask extends CTask
 				
 				if (--timesToTick == 0){
 					Node.clearInterval(timer);
-					complete();
+					if (flag_fail) fail(); else complete();
 				}
 				else
 					PROGRESS += progressInc;
@@ -46,4 +47,11 @@ class CTestTask extends CTask
 		};
 	}//---------------------------------------------------;
 	
+	/**
+	 * Fail this task when it ends
+	 */
+	public function FAIL():CTestTask
+	{
+		flag_fail = true; return this;
+	}//---------------------------------------------------;
 }//--

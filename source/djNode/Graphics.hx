@@ -176,18 +176,6 @@ class Graphics
 	{
 		ProgressBar.draw(x, y, width, percent);
 	}//---------------------------------------------------;	
-
 	
-	/**
-	 * Temporary solution for hiding the cursor,
-	 * this just moves it out of the way
-	 */
-	public static function hideCursor():Void
-	{
-		// BUG: Window terminal can't actually hide the cursor,
-		//		so I move it to the bottom right of the window.
-		// t.move(MAX_WIDTH,MAX_HEIGHT-1);
-		t.move(1, 1);
-	}//---------------------------------------------------;
 	
 }// -- end class --
