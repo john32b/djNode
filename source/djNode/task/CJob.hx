@@ -324,6 +324,7 @@ class CJob
 			//		 This is not ideal if there are many tasks running at once (CPU wise)
 			// NOTE: Will not get called from FLAG_NO_PROGRESS tasks				
 			case CTaskStatus.progress:
+				TASK_LAST = t;
 				slots_progress[t.SLOT] = t.PROGRESS;
 				calculateProgress();
 				onJobStatus(CJobStatus.progress, this);

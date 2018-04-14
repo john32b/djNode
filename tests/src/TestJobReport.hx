@@ -14,36 +14,49 @@ class TestJobReport extends TestTemplate
 	{
 		super('Testing Generic Job Reporting');
 		
-				
-		a("One task at a time", function(){
+		a("Synoptic Progress", function(){
 			
-			T.println("Testing a couple of tasks");
-			expect("Tasks should report progress and COMPLETE");
+			T.println("Testing running a few tasks.");
+			expect("There is a single bar displaying progress for all tasks.");
 			
-			var j = new CJob("Test Job");
+			var j = new CJob("Test synoptic progress report");
 				j.onComplete = function(a){doNext(); };
 				j.add(new CTestTask(300, 'Initializing'));
 				// Starting with - will not report progress
 				j.add(new CTestTask(500, '-No Progress Report'));
-				j.addAsync(new CTestTask(4200,'Fake Compressing File 1'));
-				j.addAsync(new CTestTask(4200,'Fake Compressing File 2'));
-				j.addAsync(new CTestTask(3200, 'Fake Compressing File 3'));
+				j.addAsync(new CTestTask(200,'Compressing File 1'));
+				j.addAsync(new CTestTask(3200,'Compressing File 2'));
+				j.addAsync(new CTestTask(3200, 'Compressing File 3'));
 				j.add(new CTestTask(500,'Finalizing'));
-				
-			var report = new CJobReport(j);
+			var report = new CJobReport(j, false, true);
+
 			j.start();
 		
 		}, "halt");
+		
 	
-		a("Failing Task", function(){
+		a("Detailed Progress", function(){
 			
-			expect("Tasks should report progress and FAIL");
+			T.println("Testing a few tasks with DETAILED progress view.");
+			expect("Tasks should report progress individually");
+			expect("Custom user info at beggining and end");
 	
-			var j = new CJob("Test Job");
+			var j = new CJob("Testing multiple progress report");
 				j.onComplete = function(a){doNext(); };
-				j.add(new CTestTask(300, 'Initializing'));
-				j.addAsync(new CTestTask(2200, 'Doing something').FAIL());
-			var report = new CJobReport(j);
+				j.MAX_CONCURRENT = 3;
+				j.addAsync(new CTestTask(1200,'Compressing File 1'));
+				j.addAsync(new CTestTask(2200,'Compressing File 2'));
+				j.addAsync(new CTestTask(2800,'Compressing File 3'));
+				j.addAsync(new CTestTask(2500,'Compressing File 4'));
+				j.addAsync(new CTestTask(1700,'Compressing File 5'));
+				j.add(new CTestTask(800, 'Finalizing'));
+			var report = new CJobReport(j, true);
+			report.onStart = function(j){
+				T.println("Custom user code, onStart()");
+			}
+			report.onComplete = function(j,s){
+				T.println("Custom use code, onComplete()");
+			}
 			j.start();
 		
 		}, "halt");
