@@ -323,11 +323,12 @@ class Terminal
 	
 	/**
 	 * Moves the cursor to a specific X and Y position on the Terminal
+	 * Starting from (1,1)
 	 */
 	public function move(x:Int, y:Int):Terminal
 	{
 		#if js
-			untyped(Node.process.stdout.cursorTo(x, y));
+			untyped(Node.process.stdout.cursorTo(x-1, y-1));
 			return this;
 		#elseif cs
 			Console.SetCursorPosition(x, y);
