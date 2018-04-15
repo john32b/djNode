@@ -48,8 +48,7 @@ class BaseApp
 	// Fill this object up (check the typedef for more info)
 	var PROGRAM_INFO:AppInfo = {
 		name:"nodeJS Application",
-		version:"0.1",
-		executable:"app.js"
+		version:"0.1"
 	}
 	
 	// #USERSET
@@ -286,7 +285,7 @@ class BaseApp
 	**/
 	function printHelp()
 	{
-		var A = ARGS;
+		var A = ARGS; var P = PROGRAM_INFO;
 		
 		// -- Some Local Functions ::
 		
@@ -325,7 +324,8 @@ class BaseApp
 		
 		T.printf(' ~green~Program Usage: ~!~ \n');
 		
-		var s:String = '   ${PROGRAM_INFO.executable} ';
+		if (P.executable == null) P.executable = "app.js";
+		var s:String = '   ${P.executable} ';
 		if (A.Actions.length > 0) 	s += "<action> ";
 		if (A.Options.length > 0) 	s += "-<option> <parameter> ...\n      ";
 		if (A.inputRule != "no") {

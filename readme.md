@@ -1,6 +1,7 @@
+
 # djNode library for HAXE
 
-**Version:** 0.2rc\
+**Version:** 0.2\
 **Author:** John Dimi, <johndimi@outlook.com>, twitter:[@jondmt](https://twitter.com/jondmt)\
 **Language:** Haxe 3.x\
 **Requires:** hxnodejs\
@@ -11,73 +12,132 @@ __djNode__ is a set of tools and helpers for creating **nodeJS CLI** application
 
 ----------
 
-## Features
-
-- Terminal Wrapper that supports coloring, text formatting, cursor manipulation and more.
+### Features
+- Terminal Print Helper class, that supports coloring, text formatting, cursor manipulation and more.
 - Advanced input arguments handling with automatic safeguards and easy retrieval of argument options/actions.
 - Automatic handling of multiple Tasks that can run in **sync** or **async**. Progress reports and chaining.
-- Easy external CLI application spawner with build in helpers to read stdout/stderr
+- Easy external CLI application spawner with builyt in helpers to read stdout/stderr
 - Simple LOG system that can output to a file or http using sockets (**in development**)
 - More to come
 
+
 ### How to install
 
-`haxelib git djNode https://github.com/johndimi/djNode.git`\
-or\
-`haxelib git djNode https://github.com/johndimi/djNode.git dev`\
-to get the DEV branch
+`haxelib git djNode https://github.com/johndimi/djNode.git`
+
 
 ### Components/Tools
 
 Included in the source is a **test** project that showcases and tests the various components. 
 
+#### Terminal.hx
+Contains basic functions for printing and moving the cursor. \
+:star2: **Feature** : Inline tagging system to quickly inject color codes, used in `sprintf` and `printf` functions.
+
+*Example 1:*
+```javascript
+T.printf('~yellow~Quick and easy~green~ Multicolored~red~ Strings~!~\n');
+```
+![printf example](images/printf_example.png)
+
+*Screen from the Terminal Demo : *
+![Terminal Demo](images/example_test_001.png)
+
 #### `CTask.hx`
 An object that holds user code. It reports progress and status updates to a manager object `CJob`. Tasks can run in **sync** or **async**. The manager is responsible for queuing and executing tasks.\
 SYNC tasks can only run by themselves. ASYNC tasks can only run with other Async tasks or on their own. Depending on the task queue.
+> Create `CTasks` and add them to a `CJob` manager
 
 #### `CJob.hx`
-An object handling `CTask` objects. It will report status and progress with callbacks on complete, fail, progress updated.
+An object handling `CTask` objects. It will report status and progress with callbacks on complete, fail, progress updated.\
+**example**
+```haxe
+var j = new CJob("Job Name");
 
+	j.add(new CTask(function(t){
+		// This code will run when this task is called
+		// you can do async or sync stuff in here, just call:
+	   	   t.complete();
+		// when you are done
+	},"QuickTask");
+
+	// You can create your own custom Tasks by extending the CTask Class:
+	j.add(new CTaskExtract('file1.zip'));
+
+	// These tasks will run concurrently :
+	j.addAsync(new CTaskDownload("fileLocation..."));
+	j.addAsync(new CTaskDownload("fileLocation..."));
+	j.addAsync(new CTaskDownload("fileLocation..."));
+
+	// The number of MAX concurrent tasks can be set with
+	j.MAX_CONCURRENT = 2; 
+
+	// Start the job
+	j.start(); 
+```
+
+*Screen from the Job Demo, shows tasks running in sequence: *
 ![Tasks running Test](images/example_test_003.gif)
 
 #### `CJobReport.hx`
-Will listen to a `CJob` status updates and write progress to the terminal.
+Listens to a `CJob` status updates and write progress to the terminal.\
+**Features** : Can also show individual track progress, (*Check the test project*)
 
-![Job Report test](images/example_test_004.gif)
+*Synoptic Job report*\
+![Synopotic Job Report](images/example_test_004.gif)
 
-
-#### `Terminal.hx`
-- Colors
-- Moving the cursor
-- Supports **custom TAGS** in strings to quickly set colors and styles inline
-- Chaining commands
-- Check the source and tests for more
-
-e.g.
-`Terminal.printf("~yellow~This text is yellow~green~ And this is green")`\
-is the same as writing:\
-`Terminal.fg("yellow").print("This text is yellow").fg('green').print(" And this is green")`
-![Terminal Demo](images/example_test_001.png)
+*Individual Task Report*\
+![Individual Task Report](images/example_test_005.gif)
 
 
 ### `BaseApp.hx`
-It's the class that the main entry class of the program should extend.\
-You can declare what kind of actions, options, inputs and outputs the program expects and will read and parse the arguments based on the rules you set.
-e.g. You can require your program to expect an input file, or expect an option with a parameter, etc. The program will  produce informative error messages when a rule is not satisfied\
-Also it will create usage info based on all the rules and expected actions.options.
+It's the what main entry class of the program should extend.\
+You can declare what kind of actions, options, inputs and outputs the program expects and will read and parse those arguments based on the rules you set. Also it will create usage info based on all the rules and expected actions.options.
 
-- Input : required, optional, multiple, no
-- Output : yes, no, optional
-- Actions : Only one action can be set at a time
-- Options: Multiple options can be set at a time, some options require arguments
+*e.g.* You can require your program to expect an input file, or expect an option with a parameter, etc. The program will  produce informative error messages when a rule is not satisfied
+
+- Inputs : *required, optional, multiple, no*
+- Output : *yes, no, optional*
+- Actions : *Only one action can be set at a time*
+- Options: *Multiple options can be set at a time, some options require arguments*
+
+**example**, Making the program to expect an input file and a program action.
+```haxe
+class Main extends BaseApp {
+	override function init():Void{
+		PROGRAM_INFO = {
+			name : "Compressor",
+			version : "0.1"
+		}
+		ARGS.inputRule = "yes";
+		ARGS.outputRule = "opt";
+		ARGS.requireAction = true;
+		ARGS.Actions.push(['c', 'Compress', 'Compress a file']);
+		ARGS.Actions.push(['d', 'Decompress', 'Decompress a file']);
+		ARGS.Options.push(['-t', 'Temp', 'Set Temp Folder','yes']);
+		super.init();
+	}
+```
+
+**Automatic Error Message if arguments are missing**\
+![BaseApp Wrong Arguments](images/baseapp_02.png)
+
+**You can access the passed in arguments like this:**
+```haxe
+	override function onStart() 
+	{
+		argsInput[];    // Array containing all inputs
+		argsAction;    // String containing <action> code .e.g. 'a'
+		argsOptions.t; // Temp Folder parameter
+	}
+```
+
+**Use `-help` to print automatic usage infos:**\
+![BaseApp Usage Infos](images/baseapp_01.png)
 
 ### Infos
 
-Mostly personal library that I use in some tools of mine. Also CDCRUSH nodejs version uses this.
+Mostly personal library that I use in some tools of mine. [CDCRUSH nodejs](https://www.npmjs.com/package/cdcrush) version uses this.
 
->WARNING
+:warning: **WARNING** In case the Windows Default Command Line doesn't work use another console emulator like [cmder](http://cmder.net/) (*recommended*)
 
-There is a **breaking bug in nodejs** in **windows**.  `Terminal.hx` will not manipulate the cursor correctly in windows default command line.
-**How to solve:**
-- use **nodejs v4.x**
-- use another console emulator like [cmder](http://cmder.net/) (*recommended*)

@@ -4,9 +4,6 @@ import djNode.BaseApp;
 import djNode.utils.UserAsk;
 import djNode.tools.LOG;
 import djNode.utils.ActionInfo;
-import sys.FileStat;
-import sys.FileSystem;
-import sys.io.File;
 
 class Main extends BaseApp
 
@@ -19,6 +16,12 @@ class Main extends BaseApp
 			version : "0.1"
 		}
 		
+		// Arguments example
+		ARGS.inputRule = "opt";	// Inputs are optional
+		ARGS.outputRule = "no";	// No output is needed
+		ARGS.Actions.push(['d', 'Terminal Demo', 'Proceed Directly to the Terminal Demo']);
+		ARGS.Options.push(['-f', 'Fake parameter', 'Test getting an options parameter', 'yes']); // yes=require value
+		
 		super.init();
 	}//---------------------------------------------------;
 	
@@ -27,8 +30,22 @@ class Main extends BaseApp
 	{
 		printBanner();
 		
+		// Read Arguments Test/Example
+		if (argsOptions.f != null)
+		{
+			T.println("~~ Option [-f] was set, with a parameter of (" + argsOptions.f + ") ~~");
+		}
+		
+		if (argsAction == 'd')
+		{
+			T.println("~~ Action [d] was set, Jumping to the Terminal Demo ~~");
+			doTest(0);
+			return;
+		}
+		
 		T.H2("Component examples/tests :");
 		
+		// Read Other Input Arguments
 		if (argsInput[0] != null) 
 		{
 			doTest(Std.parseInt(argsInput[0]));
