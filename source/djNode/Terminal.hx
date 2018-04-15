@@ -16,12 +16,12 @@
  * 
  * Notes:
  * ============
- * 	References: http://tldp.org/HOWTO/Bash-Prompt-HOWTO/,
+ * 	References: http://tldp.org/HOWTO/Bash-Prompt-HOWTO/
  * 				http://ascii-table.com/ansi-escape-sequences.php
  *  			http://www.termsys.demon.co.uk/vtansi.htm
  *  			http://misc.flogisoft.com/bash/tip_colors_and_formatting
  * 				http://pueblo.sourceforge.net/doc/manual/ansi_color_codes.html
- * 				http://man7.org/linux/man-pages/man4/console_codes.4.html
+ * 				https://en.wikipedia.org/wiki/ANSI_escape_code  <--
  *
  * 
  * 	Cursor Position :
@@ -238,15 +238,15 @@ class Terminal
 	 */
 	public inline function print(str:String):Terminal
 	{
-		Sys.print(str);
+		//Sys.print(str);
 		
-		//#if js
-			//Node.process.stdout.write(str);
-		//#elseif cpp
-			//Lib.print(str);
-		//#else
-			//Sys.print(str);
-		//#end
+		#if js
+			Node.process.stdout.write(str);
+		#elseif cpp
+			Lib.print(str);
+		#else
+			Sys.print(str);
+		#end
 		
 		return this;
 	}//---------------------------------------------------;
@@ -326,7 +326,10 @@ class Terminal
 	 */
 	public function move(x:Int, y:Int):Terminal
 	{
-		#if cs
+		#if js
+			untyped(Node.process.stdout.cursorTo(x, y));
+			return this;
+		#elseif cs
 			Console.SetCursorPosition(x, y);
 			return this;
 		#else
@@ -335,12 +338,34 @@ class Terminal
 	}//---------------------------------------------------;
 	
 	/**
+	   Move Relative to current position
+	**/
+	public function moveR(x:Int, y:Int):Terminal
+	{
+		#if js
+			untyped(Node.process.stdout.moveCursor(x, y));
+		#else
+		
+			var c = '';
+			if (x < 0) c += ESCAPE_SEQ + ( -x) + 'D';
+			else if (x > 0) c += ESCAPE_SEQ + ( x ) + 'C';	
+			if (y < 0) c += ESCAPE_SEQ + ( -y) + 'A';
+			else if (y > 0) c += ESCAPE_SEQ + ( y) + 'B';
+			print(c);
+
+		#end
+		
+		return this;
+	}//---------------------------------------------------;
+	
+	
+	/**
 	 * Stores the position of the cursor, for later use
 	 * with restorePos()
 	 */
 	public inline function savePos():Terminal
 	{
-		return print('\033[s');
+		return print('\x1B[s');
 	}//---------------------------------------------------;
 
 	/**
@@ -349,7 +374,7 @@ class Terminal
 	 */
 	public inline function restorePos():Terminal
 	{
-		return print('\033[u');
+		return print('\x1B[u');
 	}//---------------------------------------------------;
 	
 	/**
@@ -373,25 +398,40 @@ class Terminal
 	
 	/**
 	 * Clears the line the cursor is at.
-	 * @param ?type 0-Clear all forward, 1-Clear all back, 2-Clear entire line(default)
+	 * - Cursor position does not change !
+	 * @param type 	0:Clear all forward
+	 * 				1:Clear all back
+	 * 				2:Clear entire line (default)
 	 */
-	public function clearLine(?type:Int):Terminal
+	public function clearLine(type:Int = 2):Terminal
 	{
-		return print('\x1B[' + Std.string((type != null) ? type : 2) + 'K');
+		//#if js
+			// Node.process.stdout.clearLine(			
+			// -1 - to the left from cursor
+			//  1 - to the right from cursor
+			//  0 - the entire line
+		//#else
+			return print('\x1B[${type}K');
+		//#end
 	}//---------------------------------------------------;
 	
 	/**
-	 * Clears the screen and positions the cursor to (1,1)
-	 * @param ?type 0-Clear all forward, 1-Clear all back, 2-Clear entire screen(default)
+	 * Clears the screen
+	 * @param type 	0:Clear all forward
+	 * 				1:Clear all back, 
+	 * 				2:Clear entire screen, move cursor to 1,1 (default)
 	 */
-	public function clearScreen(?type:Int):Terminal
+	public function clearScreen(type:Int = 2):Terminal
 	{
-		#if cs
+		#if js
+			if (type > 0) move(1, 1);
+			untyped(Node.process.stdout.clearScreenDown());
+			return this;
+		#elseif cs
 			Console.Clear();
 			return this;
 		#else
-			return print('\x1B[' + Std.string((type != null) ? type : 2) + 'J');
-			// if (type == null || type == 2) move(1, 1); return this; // whole line might be redundant
+			return print('\x1B[${type}J');
 		#end
 	}//---------------------------------------------------;
 	
@@ -402,6 +442,7 @@ class Terminal
 	/**
 	 * Prints a horizontal line in current place
 	 * The line has a default width of 40 chars
+	 * NewLine at the end.
 	 * @param symbol optional custom symbol
 	 * @param length optional custom length
 	 */
