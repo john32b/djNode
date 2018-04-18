@@ -538,8 +538,11 @@ class Terminal
 			case "!"	: return _RESET_ALL;
 			case "!fg"	: return _RESET_FG;
 			case "!bg"	: return _RESET_BG;
+			case "b"	: return _BOLD;
+			case "!b"	: return _RESET_BOLD;
 			case "line":  return StringTools.lpad("", DEFAULT_LINE_SYMBOL, DEFAULT_LINE_WIDTH) + "\n";
 			case "line2": return StringTools.lpad("", DEFAULT_LINE_SYMBOL, Math.ceil(DEFAULT_LINE_WIDTH / 2)) + "\n";
+			
 
 			// Proceed checking for colors or bg colors:
 			default :

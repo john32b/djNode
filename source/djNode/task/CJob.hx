@@ -180,6 +180,14 @@ class CJob
 		t.async = true; return addNext(t);
 	}//---------------------------------------------------;	
 	
+	
+	// # USER CODE
+	// Override this and put initialization code
+	// ~ All Throws will be caught and handled ~
+	public function init()
+	{		
+	}//---------------------------------------------------;
+	
 	// Starts the JOB
 	// THIS IS ASYNC and will return execution to the caller right away'
 	// Use the onStatus and onComplete callbacks to get updates
@@ -204,7 +212,16 @@ class CJob
 		slots_active = [for (i in 0...MAX_CONCURRENT) false];
 		slots_progress = [for (i in 0...MAX_CONCURRENT) -1];
 		
+		
 		LOG.log('Starting Job `$name`');
+		try{
+			init();
+		}catch (e:Error){
+			fail(e.message); return;
+		}catch (e:String){
+			fail(e); return;
+		}
+		
 		status = CJobStatus.start;
 		onJobStatus(status, this);
 		feedQueue();
@@ -275,7 +292,13 @@ class CJob
 		
 		LOG.log('Task Start | ${t} | Remaining:${taskQueue.length} | Running:${currentTasks.length}');
 
-		t.start();
+		try{
+			t.start();
+		}catch (e:Error){
+			t.fail(e.message);
+		}catch (e:String){
+			t.fail(e);
+		}
 		
 	}//---------------------------------------------------;
 	

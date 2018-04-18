@@ -58,7 +58,7 @@ class FileCopyPart
 	   @param	outputFile	Appends to this file, or creates it
 	   @param	readStart	Start Byte Position of source file
 	   @param	readLen		End Byte Position of source file ( 0 for entire file )
-	   @param	forceNewFile If true, output file will be cleared out if already exists
+	   @param	forceNewFile If true, output file will be cleared out if already exists. Else Appended
 	**/
 	public function start(inputFile:String, outputFile:String, readStart:Int = 0, readLen:Int = 0, forceNewFile:Bool = false )
 	{
@@ -81,7 +81,7 @@ class FileCopyPart
 			return;
 		}
 		
-		LOG.log('Copying `$inputFile` Bytes [$readStart -> $readLen] to `$outputFile`');
+		LOG.log('Copying `$inputFile` Bytes [$readStart [len]-> $readLen] to `$outputFile`');
 		
 		// --
 		var dest_stream:WriteStream = Fs.createWriteStream(outputFile, {
@@ -124,9 +124,6 @@ class FileCopyPart
 
 			dest_stream.once("close", function() { events.emit("complete"); } );
 			dest_stream.end();
-			
-			events.removeAllListeners("close");
-			
 		});
 		
 		

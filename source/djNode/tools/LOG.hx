@@ -226,7 +226,7 @@ class LOG
 	{
 		var m = 
 			messageTypes[log.level] + " (" +  
-			log.pos.fileName + ":" + log.pos.lineNumber + " ) " +
+			log.pos.fileName + ":" + log.pos.lineNumber + ") " +
 			// " [" + log.pos.className + "]" + 
 			log.log + "\n";
 		

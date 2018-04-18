@@ -8,7 +8,8 @@
 package djNode.tools;
 
 import js.Error;
-import js.Node;
+import js.node.Buffer;
+import js.node.Crypto;
 import js.node.Fs;
 import js.node.fs.Stats;
 import js.node.Path;
@@ -20,17 +21,18 @@ class FileTool
 {
 	
 	// Recursivly creates a directory structure
+	// ~ Throws errors ~
 	// <inPath> will be created if it does not exist
 	// e.g. createRecursiveDir("c:\\myfolder\\temp1\\temp2\\temp3");
 	public static function createRecursiveDir(inPath:String):Void {
 		
 		#if !js
 		throw "Not supported yet";
-		#end
+		#else
 		
 		var paths:Array<String> = Path.normalize(inPath).split(Path.sep);
 		var cM = paths.length;
-		if (cM <= 0) throw "Path is empty!";
+		if (cM <= 0) throw 'Path is invalid/Empty';
 		var c = 0;
 		var p1 = "";	// Cummulative path for iterations 
 		// Check to see if the path is drive path (win32 only)
@@ -54,7 +56,68 @@ class FileTool
 			}
 			c++;
 		}
+		
+		#end
 	}//---------------------------------------------------;
+	
+	
+	/**
+	* Remove directory recursively
+	*/
+	public static function deleteRecursiveDir(dir_path:String)
+	{
+		if (pathExists(dir_path))
+		{
+			var contents = Fs.readdirSync(dir_path);
+			for (entry in contents)
+			{
+				var entry_path = Path.join(dir_path, entry);
+				if (Fs.lstatSync(entry_path).isDirectory()){
+					deleteRecursiveDir(entry_path);
+				}else{
+					Fs.unlinkSync(entry_path);
+				}
+			}
+			Fs.rmdirSync(dir_path);
+		}
+	}//---------------------------------------------------;
+	
+	
+	
+	/**
+	 * Check to see if the program can write to target folder
+	 */
+	public static function hasWriteAccess(path:String):Bool
+	{
+		try{
+			Fs.accessSync(path, 2);
+		}catch (e:Error)
+		{
+			return false;
+		}
+			return true;
+		 //fs.constants
+		  //O_RDONLY: 0,
+		  //O_WRONLY: 1,
+		  //O_RDWR: 2,
+		  //S_IFMT: 61440,
+		  //S_IFREG: 32768,
+		  //S_IFDIR: 16384,
+		  //S_IFCHR: 8192,
+		  //S_IFLNK: 40960,
+		  //O_CREAT: 256,
+		  //O_EXCL: 1024,
+		  //O_TRUNC: 512,
+		  //O_APPEND: 8,
+		  //F_OK: 0,
+		  //R_OK: 4,
+		  //W_OK: 2,
+		  //X_OK: 1,
+		  //UV_FS_COPYFILE_EXCL: 1,
+		  //COPYFILE_EXCL: 1 
+	}//---------------------------------------------------;
+	
+	
 	
 	// --
 	// Since NODE is deprecating existsSync, I am writing a very simple one.
@@ -69,50 +132,51 @@ class FileTool
 	}//---------------------------------------------------;
 	
 	/**
-	 * @UNSAFE doesn't check for errors 
+	 * @SYNC
 	 * Move a file and callback when done.
 	 * @param	source
 	 * @param	dest
 	 * @param	onComplete
 	 * @param	onProgress
 	 */
-	public static function moveFile(source:String, dest:String, onComplete:Void->Void, ?onProgress:Void->Void):Void {
-
+	public static function moveFile(source:String, dest:String) 
+	{
 		#if !js
-		throw "Not supported yet";
+			throw "Not supported yet";
 		#end
 		
-		Fs.rename(source, dest, function(er:Error) {
-			if (er != null) {
-				copyFile(source, dest, function() {	
-					try {
-						Fs.unlinkSync(source);
-					}catch (e:Dynamic) {
-						LOG.log('Could not delete "$source" while moving');
-					}
-					onComplete();
-				}, onProgress);
-			} else {
-				//It smart moved ok.
-				onComplete();
+		try{
+			Fs.renameSync(source, dest);
+		}catch (e:Error)
+		{
+			copyFile(source, dest);
+			
+			try{
+				Fs.unlinkSync(source);
+			}catch (e:Error){
+				LOG.log('Could not delete "$source" while moving.', 3);
 			}
-		});
+		}
+		
 	}//---------------------------------------------------;
 
 	/**
-	 * @UNSAFE doesn't check for errors 
+	 * @SYNC
 	 * Copies a file and callsback when done
 	 * @param	source
 	 * @param	dest
-	 * @param	onComplete
-	 * @param	onProgress
 	 */
-	public static function copyFile(source:String, dest:String, onComplete:Void->Void, ?onProgress:Void->Void) 
+	public static function copyFile(source:String, dest:String) 
 	{	
 		#if !js
-		throw "Not supported yet";
+			throw "Not supported yet";
 		#end
 		
+		// SYNC:
+		Fs.writeFileSync(dest, Fs.readFileSync(source));
+		
+		/*
+		// ASYNC:
 		var _in  = Fs.createReadStream(source);
 		var _out = Fs.createWriteStream(dest);
 		_in.pipe(_out);
@@ -121,9 +185,7 @@ class FileTool
 			_out.end();
 			onComplete();
 		});	
-		
-		if (onProgress != null) // TODO: FIX onProgress 
-			_out.on("data", function(data:Dynamic) onProgress());
+		*/
 	}//---------------------------------------------------;
 
 	/*
@@ -204,6 +266,32 @@ class FileTool
 		return fileList;
 	}//---------------------------------------------------;
 	
+	
+	
+	/**
+	 * SYNC - Calculate a File's MD5 
+	**/
+	public static function getFileMD5(file:String):String
+	{
+		var BUFFER_SIZE:Int = 8192;
+		var fd = Fs.openSync(file, 'r');
+		var hash = Crypto.createHash('md5');
+		var buffer:Buffer = Buffer.alloc(BUFFER_SIZE);
+		try{
+			var bytesRead = 0;
+			do{
+				bytesRead = Fs.readSync(fd, buffer, 0, BUFFER_SIZE, null);
+				hash.update(buffer.slice(0, bytesRead));
+			}while (bytesRead == BUFFER_SIZE);
+		}catch (e:Error)
+		{
+			Fs.closeSync(fd);
+			return null;
+		}
+		
+		Fs.closeSync(fd);
+		return hash.digest('hex');
+	}//---------------------------------------------------;
 	
 	/**
 	 * Returns lowercase extension, with no '.'

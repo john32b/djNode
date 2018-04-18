@@ -62,7 +62,7 @@ class CLIApp
 	**/
 	public function start(?arguments:Array<String>, ?workingDir:String)
 	{
-		LOG.log('Process `$exePath` Start');
+		LOG.log('Start Process `$exePath` with arguments : ' + arguments.join(' '));
 		
 		// https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options
 		proc = ChildProcess.spawn(exePath, arguments);

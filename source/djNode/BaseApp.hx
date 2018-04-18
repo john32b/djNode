@@ -138,6 +138,18 @@ class BaseApp
 			exitError(e, true); // this will also exit
 		}
 		
+		// -- Log Arguments Got
+		
+		LOG.log('- Inputs : ' + argsInput.join(', '));
+		LOG.log('- Output : ' + argsOutput);
+		LOG.log('- Action  set : ' + argsAction);
+		LOG.log('- Options set : ');
+		for (o in Reflect.fields(argsOptions)) {
+		LOG.log('\t\t\t' + o + ' : ' + Reflect.getProperty(argsOptions, o));
+		}
+		LOG.log('-------------');
+		
+		
 		onStart();
 		
 	}//---------------------------------------------------;
@@ -224,7 +236,7 @@ class BaseApp
 		{
 			// Check if any action has a default extension and set the current active Action
 			var act = getArgAction(null, Path.extname(argsInput[0].toLowerCase()).substr(1));
-			if (act != null) argsAction = act[1];
+			if (act != null) argsAction = act[0];
 		}
 		
 		// - Check Inputs
@@ -304,10 +316,10 @@ class BaseApp
 		
 			// -- Modify some fields to correct spacings
 			if (A.helpInput != null){
-				A.helpInput = "~darkgray~\t " + ~/(\n)/g.replace(A.helpInput, "\n\t ");
+				A.helpInput = "~gray~\t " + ~/(\n)/g.replace(A.helpInput, "\n\t ");
 			}
 			if (A.helpOutput != null){
-				A.helpOutput = "~darkgray~\t " + ~/(\n)/g.replace(A.helpOutput, "\n\t ");
+				A.helpOutput = "~gray~\t " + ~/(\n)/g.replace(A.helpOutput, "\n\t ");
 			}
 			
 			// - Remove the `-o` option from expected parameters
@@ -359,9 +371,9 @@ class BaseApp
 			T.printf(" ~magenta~<actions> ~!fg~");
 			T.printf("~darkmagenta~you can set one action at a time ~!~\n");
 			for (i in A.Actions) {
-				T.printf('~white~ ${i[0]}\t ${i[1]}');
-				if (i[3] != null) T.printf('  ~gray~ Auto Ext : (${i[3]})');
-				T.printf('\n\t~darkgray~ ${i[2]}\n').reset();
+				T.printf('~white~ ${i[0]}\t ~magenta~${i[1]}');
+				if (i[3] != null) T.printf('  ~darkgray~ // auto ext:[${i[3]}]');
+				T.printf('\n\t~gray~ ${i[2]}\n').reset();
 			}
 		}// --
 		
@@ -370,7 +382,7 @@ class BaseApp
 			T.printf(" ~cyan~<options> ~!fg~");
 			T.printf("~darkcyan~you can set many options~!~\n");
 			for (i in A.Options) {
-				T.printf('~white~ ${i[0]}\t ${i[1]}');
+				T.printf('~white~ ${i[0]}\t ~cyan~${i[1]}');
 				if (i[3] != null) T.printf('~gray~ [requires parameter] ');
 				T.printf('\n\t~darkgray~ ${i[2]}\n').reset();
 			}
@@ -384,12 +396,14 @@ class BaseApp
 		var P = PROGRAM_INFO;
 		var col = "white"; var lineCol = "darkgray"; 
 		T.endl(); // one blank line at first
-		T.printf('== ~$col~${P.name} v${P.version}~!~\n');
+		T.printf('== ~$col~~b~${P.name} v${P.version}~!~\n');
 		//t.printf(' ~lineCol~~line2~');
-		if (longer && P.desc != null) 
-			T.printf(' - ${P.desc}\n');
-		if (longer && P.author != null)
-			T.printf(' - ${P.author}\n');
+		if (longer)
+		{
+			if (P.desc != null) T.print(' - ${P.desc}\n');
+			if (P.author != null || P.contact != null)  
+				T.print(' - ${P.author} , ${P.contact}\n');
+		}
 		T.printf(' ~$lineCol~~line~~!~');
 	}//---------------------------------------------------;
 	

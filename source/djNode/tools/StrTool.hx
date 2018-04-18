@@ -20,6 +20,19 @@ class StrTool
 {
 	
 	/**
+	   https://github.com/jdegoes/stax/blob/master/src/main/haxe/haxe/util/Guid.hx
+	   @return
+	**/
+	 public static function getGUID(): String 
+	 {
+		var result = "";
+		for (j in 0...32) {
+		if ( j == 8 || j == 12 || j == 16 || j == 20) { result += "-"; }
+		result += StringTools.hex(Math.floor(Math.random() * 16)); }	
+		return result.toUpperCase();
+	}//---------------------------------------------------;
+	
+	/**
 	 * Converts bytes to megabytes. Useful for creating readable filesizes.
 	 * 
 	 * @param	bytes Number of bytes to convert

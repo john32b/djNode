@@ -183,6 +183,10 @@ class CTask
 				fail(b);
 			}
 		});
+		
+		app.events.on("progress", function(p){
+			PROGRESS = p;
+		});
 	}//---------------------------------------------------;
 	
 }// -
