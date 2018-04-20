@@ -40,6 +40,10 @@ class BaseApp
 	// All other classes should link to this one, instead of creating new terminals.
 	public static var TERMINAL(default, null):Terminal;
 	
+	// Spacing formatter on the help screen
+	// Aligns the Description of Options,Actions to this many chars from the left 
+	var HELP_MARGIN:Int = 12;
+	
 	// Pointer to the global terminal, small varname for quick access from within this class
 	var T(default, null):Terminal;
 	
@@ -175,7 +179,7 @@ class BaseApp
 		var arguments = Sys.args();
 		var arg:String;
 		while ( (arg = arguments[cc++]) != null)
-		{			
+		{
 			// # <option>, options start with `-`
 			if (arg.charAt(0) == "-")
 			{
@@ -184,7 +188,7 @@ class BaseApp
 			
 				var o = getArgOption(arg);
 				if (o == null) throw 'Illegal argument [$arg]';
-				if (o[3] != null) {
+				if (o[3] != null) { // Requires Parameter
 					var nextArg:String = arguments[cc++];	
 					if (nextArg == null || getArgOption(nextArg) != null) {
 						throw 'Argument [$arg] requires a parameter';
@@ -257,6 +261,15 @@ class BaseApp
 			throw "Setting an action is required";
 		}
 		
+		// - Make options not set to fields with `false` for quick look up
+		for (o in ARGS.Options) {
+			if (o[3] == null) { // Option not expecting argument
+				var id = o[0].substr(1);
+				if (!Reflect.hasField(argsOptions, id)) {
+					Reflect.setField(argsOptions, id, false);
+				}
+			}
+		}
 	}//---------------------------------------------------;
 	
 	/**
@@ -297,6 +310,8 @@ class BaseApp
 	**/
 	function printHelp()
 	{
+		var sp = function(s){return StringTools.lpad("", " ", s); }	
+		
 		var A = ARGS; var P = PROGRAM_INFO;
 		
 		// -- Some Local Functions ::
@@ -306,7 +321,7 @@ class BaseApp
 			}//----------------------------------
 			function __fixDescFormat(s:String):String{
 				if (s != null && s.length > 0){
-					return ~/(\n)/g.replace(s, "\n\t");
+					return ~/(\n)/g.replace(s, '\n ' + sp(HELP_MARGIN));
 				}else{
 					return "...";
 				}
@@ -334,7 +349,7 @@ class BaseApp
 		
 		// -- Start Printing ::
 		
-		T.printf(' ~green~Program Usage: ~!~ \n');
+		T.printf(' ~green~Program Usage: ~white~ \n');
 		
 		if (P.executable == null) P.executable = "app.js";
 		var s:String = '   ${P.executable} ';
@@ -371,9 +386,10 @@ class BaseApp
 			T.printf(" ~magenta~<actions> ~!fg~");
 			T.printf("~darkmagenta~you can set one action at a time ~!~\n");
 			for (i in A.Actions) {
-				T.printf('~white~ ${i[0]}\t ~magenta~${i[1]}');
-				if (i[3] != null) T.printf('  ~darkgray~ // auto ext:[${i[3]}]');
-				T.printf('\n\t~gray~ ${i[2]}\n').reset();
+				T.printf('~white~ ${i[0]}' + sp(HELP_MARGIN - i[0].length) + '~magenta~${i[1]}');
+				if (i[3] != null) T.printf('~darkgray~ ~ auto ext:[${i[3]}]');
+				T.endl().print(sp(HELP_MARGIN));
+				T.printf('~gray~ ${i[2]}\n').reset();
 			}
 		}// --
 		
@@ -382,9 +398,10 @@ class BaseApp
 			T.printf(" ~cyan~<options> ~!fg~");
 			T.printf("~darkcyan~you can set many options~!~\n");
 			for (i in A.Options) {
-				T.printf('~white~ ${i[0]}\t ~cyan~${i[1]}');
-				if (i[3] != null) T.printf('~gray~ [requires parameter] ');
-				T.printf('\n\t~darkgray~ ${i[2]}\n').reset();
+				T.printf('~white~ ${i[0]}' + sp(HELP_MARGIN - i[0].length) + '~cyan~${i[1]}');
+				if (i[3] != null) T.printf('~darkgray~ [requires parameter] ');
+				T.endl().print(sp(HELP_MARGIN));
+				T.printf('~gray~ ${i[2]}\n').reset();
 			}
 		}// --
 		

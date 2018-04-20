@@ -78,7 +78,7 @@ class CJobReport
 	{
 		T = BaseApp.TERMINAL;
 		job = j;
-		j.onJobStatus = onJobStatus;
+		j.events.on("jobStatus", onJobStatus);
 		flag_multiple_progress = MULTIPLE_PROGRESS;
 		flag_pre_post_infos = PRINT_PRE_POST;
 		
@@ -119,7 +119,7 @@ class CJobReport
 				T.savePos();
 				printSynopticInit();
 								
-				
+
 			case CJobStatus.complete:
 				doCompleteJob(true);
 
@@ -165,7 +165,7 @@ class CJobReport
 				
 			case CJobStatus.taskEnd:
 
-					printSynopticProgress();
+					printSynopticProgress(); // update tasks completed
 					
 					if (flag_multiple_progress) {
 						gotoTaskLine(j.TASK_LAST);
@@ -202,7 +202,7 @@ class CJobReport
 	{
 		// Tasks Completed ::
 		T.restorePos().forward(jobCursorJump);
-		T.printf('~yellow~${job.TASKS_COMPLETE}/${job.TASKS_TOTAL}'); 
+		T.printf('~yellow~${job.TASKS_P_COMPLETE}/${job.TASKS_P_TOTAL}'); 
 		
 		// Progress Bar and Percent ::
 		T.restorePos().down().forward(jobCursorJump);

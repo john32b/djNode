@@ -17,6 +17,7 @@ class CTestTask extends CTask
 {
 	
 	var flag_fail:Bool = false;
+	var nextTasks:Dynamic = null;
 	
 	/**
 	   
@@ -54,4 +55,28 @@ class CTestTask extends CTask
 	{
 		flag_fail = true; return this;
 	}//---------------------------------------------------;
+	
+	/**
+	   When this tasks completes, add more tasks on the job
+	   right after this one
+	   @return
+	**/
+	public function addMore(num:Int = 3, time:Int = 400):CTestTask
+	{
+		nextTasks = {num:num, time:time};
+		return this;
+	}//---------------------------------------------------;
+	
+	override public function complete() 
+	{
+		if (nextTasks != null)
+		{
+			for (i in 0...nextTasks.num)
+			{
+				parent.addNextAsync(new CTestTask(nextTasks.time, "Injected Task"));
+			}
+		}
+		super.complete();
+	}//---------------------------------------------------;
+	
 }//--

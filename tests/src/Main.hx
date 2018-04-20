@@ -48,7 +48,7 @@ class Main extends BaseApp
 		// Read Other Input Arguments
 		if (argsInput[0] != null) 
 		{
-			doTest(Std.parseInt(argsInput[0]));
+			doTest(Std.parseInt(argsInput[0]) - 1);
 		}else{
 			UserAsk.multipleChoice([
 				"Terminal Test",

@@ -27,7 +27,7 @@ class TestJobSystem extends TestTemplate
 			expect("Tasks should start and end one after the other");
 			
 			var job = new CJob();
-				job.onTaskStatus = onTaskStatus;
+				job.events.on("taskStatus", onTaskStatus);
 				job.MAX_CONCURRENT = 1;
 				
 				job.onComplete = function(a){doNext();};
@@ -50,15 +50,14 @@ class TestJobSystem extends TestTemplate
 			expect("ASync tasks should run along with other Async tasks only");
 			
 				var job = new CJob();
-				job.onTaskStatus = onTaskStatus;
+				job.events.on("taskStatus", onTaskStatus);
 				job.MAX_CONCURRENT = 3;
 				job.onComplete = function(a){doNext();};
 				flag_report_progress = false;
 				job.add(new CTestTask(300));
-				job.add(new CTestTask(300));
+				job.add(new CTestTask(300).addMore(2, 400));
 				job.addAsync(new CTestTask(800));
-				job.addAsync(new CTestTask(700));
-				job.addAsync(new CTestTask(1000,700));
+				job.addAsync(new CTestTask(1000, 700));
 				job.addAsync(new CTestTask(2000,700));
 				job.add(new CTestTask(400));
 				job.addAsync(new CTestTask(300));

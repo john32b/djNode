@@ -13,17 +13,40 @@
 		}));
 		job.start();
 		
+	@events
 		
+		'jobStatus'	 : Sends JOB Related status updates
+					<CJobStatus, CJob>
+					waiting		:	Job hasn't started yet
+					complete	:	Job is complete
+					start		:	Job has just started
+					progress	:	Job progress % updates  (Read job.PROGRESS)
+					taskStart	:	A new task just started (Read job.TASK_LAST)
+					taskEnd		:	A task just ended		(Read job.TASK_LAST)
+					fail		:	Job has failed
+	
+		'taskStatus' : Called whenever a Task Status changes
+					<CJobStatus, CJob>
+					start	:	The task has just started
+					progress:	The task progress has changed
+					complete:	The task has been completed
+					fail	:	The task has failed, see the ERROR field
+					
+		'complete'	 : Sends completion
+					<Bool, String> , Success , Error
+	
 	@note 
 	
 	 - Code copied over from C#, CDCRUSH project
-		
+	 
 **/
 		
 package djNode.task;
 
 import djNode.task.CTask;
 import djNode.tools.LOG;
+import js.node.events.EventEmitter;
+
 import js.Error;
 
 
@@ -63,14 +86,16 @@ class CJob
 	var taskData:Dynamic;
 
 	// Total number of tasks in this job
-	public var TASKS_TOTAL(default, null):Int; 		// # USER READ
+	public var TASKS_TOTAL(default, null):Int;
+	
 	// Number of completed tasks
-	public var TASKS_COMPLETE(default, null):Int;	// # USER READ
+	public var TASKS_COMPLETE(default, null):Int;
+	
 	// Number of tasks currently running
-	public var TASKS_RUNNING(default, null):Int; 	// # USER READ
-
+	public var TASKS_RUNNING(default, null):Int;
+	
 	// The last task, pointer, usen on callbacks
-	public var TASK_LAST:CTask;						// # USER READ
+	public var TASK_LAST:CTask;
 	
 	// Currently active slots for ASYNC tasks.
 	var slots_active:Array<Bool>;
@@ -83,56 +108,40 @@ class CJob
 
 	// Current Job Status
 	public var status(default, null):CJobStatus;
-
+	
+	// Job Events Object
+	public var events:IEventEmitter;
+	
 	// #USERSET #OPTIONAL
-	// Same call as onJobStatus(complete)
+	// Same call as events.on("complete");
 	// Called whenever the Job Completes or Fails
 	// True : success, False : Error (read the ERROR field)
-	// NOTE: Be careful if you set BOTH this and onJobStatus they will both get called
 	public var onComplete:Bool->Void = null;
-
-	// #USERSET
-	// Sends JOB Related status updates
-	// A: Job Status
-	//	waiting		:	Job hasn't started yet
-	//	complete	:	Job is complete
-	//	start		:	Job has just started
-	//  progress	:	Job progress % updates  (Read job.PROGRESS)
-	//  taskStart	:	A new task just started (Read job.TASK_LAST)
-	//  taskEnd		:	A task just ended		(Read job.TASK_LAST)
-	//	fail		:	Job has failed
-	// B: The CJob itself
-	public var onJobStatus:CJobStatus->CJob->Void = function(a, b) {};
-
-	// #USERSET  
-	// Called whenever the status changes
-	// A, status message :
-	//		start	:	The task has just started
-	//		progress:	The task progress has changed
-	//		complete:	The task has been completed
-	//		fail	:	The task has failed, see the ERROR field
-	// B, the Task itself
-	public var onTaskStatus:CTaskStatus->CTask->Void = function(a, b) {};
-
+	
 	// If the job has failed, this holds the ERROR code, copied from task ERROR code
 	public var ERROR(default, null):Error;
 
 	// Keep track of whether the job is done and properly shutdown
 	var IS_KILLED:Bool = false;
-
-	// : NEW :
 	
-	// How much a task will contribute to the job progress %
-	// Can be #USERSET, if you want to hack it. Else it is autocalculated
-	var TASK_PROGRESS_RATIO:Float;
-
 	// Store the progress of the currently ongoing tasks, (using slot index)
 	// -1 to indicate no progress, 0-100 for standard progress
 	var slots_progress:Array<Int>;
 
 	// Progress % of past completed tasks. ! NOT TOTAL PROGRESS !
-	var TASKS_COMPLETED_PROGRESS:Float;
-
+	// Used to save a calculation, same as (COMPLETED_TASKS * (TASKS_P_RATIO * 100))
+	var TASKS_P_PRECALC:Float;
+	
+	// How much a task will contribute to the job progress %
+	// Can be #USERSET, if you want to hack it. Else it is autocalculated
+	var TASKS_P_RATIO:Float;
+	
+	// Number of tasks that report progress
+	public var TASKS_P_TOTAL(default, null):Int;		// Prefer this over TASKS_TOTAL
+	
+	// Number of completed tasks that report progress 
+	public var TASKS_P_COMPLETE(default, null):Int;		// Prefer this over TASKS_COMPLETE
+	
 	// This is the REAL progress %
 	// Percentage of tasks completed
 	public var PROGRESS_TOTAL(default, null):Float;
@@ -146,29 +155,51 @@ class CJob
 		taskData = TaskData;
 		name = Name == null?"Unnamed Job, " + Date.now().toString():Name;
 		status = CJobStatus.waiting;
-		TASKS_RUNNING = 0; TASKS_COMPLETE = 0; TASKS_TOTAL = 0;
-		TASKS_COMPLETED_PROGRESS = 0; PROGRESS_TOTAL = 0;
-		TASK_PROGRESS_RATIO = 0;
+		TASKS_RUNNING = 0; TASKS_COMPLETE = 0; TASKS_TOTAL = 0; PROGRESS_TOTAL = 0;
+		TASKS_P_PRECALC = 0; TASKS_P_TOTAL = 0; TASKS_P_COMPLETE = 0; TASKS_P_RATIO = 0;
+		events = new EventEmitter();
 	}//---------------------------------------------------;
-
 	
-	// --
-	// Incase a job adds tasks while running. Set this to get proper progress output
-	public function hack_setExpectedProgTracks(num:Int)
+	/**
+	 * Task initialization after adding in to the queue
+	 */
+	function addT(t:CTask):CJob
 	{
-		TASK_PROGRESS_RATIO = 1.0/num;
-	}// -----------------------------------------
+		TASKS_TOTAL++;
+		
+		if (!t.FLAG_PROGRESS_DISABLE)
+		{
+			TASKS_P_TOTAL ++;
+			
+			TASKS_P_RATIO = 1 / TASKS_P_TOTAL; 
+			
+			if (status != CJobStatus.waiting) // The Job is currently running
+			{
+				// recalculate past tasks
+				TASKS_P_PRECALC = TASKS_P_RATIO * 100 * TASKS_P_COMPLETE;
+				calculateProgress();
+				// TODO: report progress?
+			}
+			
+			LOG.log('NEW RATIO --- $TASKS_P_RATIO');
+			LOG.log('NEW TASKS_P_TOTAL --- $TASKS_P_TOTAL');
+			LOG.log('NEW TASKS_P_PRECALC --- $TASKS_P_PRECALC');
+		}
+		
+		return this;
+	}//---------------------------------------------------;
 	
 	// Add a task
 	public function add(t:CTask):CJob
 	{
-		taskQueue.push(t); TASKS_TOTAL++; return this;
+		taskQueue.push(t); return addT(t);
 	}//---------------------------------------------------;
 	// Add a task to the top of the queue
 	public function addNext(t:CTask):CJob
 	{
-		taskQueue.unshift(t); TASKS_TOTAL++; return this;
+		taskQueue.unshift(t); return addT(t);
 	}//---------------------------------------------------;
+	
 	// Adds a task in the queue that will be executed ASYNC
 	public function addAsync(t:CTask):CJob
 	{
@@ -197,23 +228,6 @@ class CJob
 			throw "A CJob object can only run once";
 		}
 		
-		if (TASK_PROGRESS_RATIO == 0)
-		{
-			// num of tasks that report progress
-			var tp:Int = 
-				taskQueue.filter(function(t:CTask){
-					return (t.FLAG_PROGRESS_DISABLE == false);
-				}).length;
-				
-			TASK_PROGRESS_RATIO = 1.0 / tp;
-		}
-		
-		// Fill in the slot array 
-		slots_active = [for (i in 0...MAX_CONCURRENT) false];
-		slots_progress = [for (i in 0...MAX_CONCURRENT) -1];
-		
-		
-		LOG.log('Starting Job `$name`');
 		try{
 			init();
 		}catch (e:Error){
@@ -222,8 +236,24 @@ class CJob
 			fail(e); return;
 		}
 		
+		if (taskQueue.length == 0){
+			fail("No Tasks to run"); return;
+		}
+		
+		if (TASKS_P_RATIO == 0) // No tracks report progress
+		{
+			LOG.log("No tracks reporting progress !!!", 2);
+			LOG.log("Progress WILL BE BROKEN", 2);
+		}
+		
+		// Fill in the slot array 
+		slots_active = [for (i in 0...MAX_CONCURRENT) false];
+		slots_progress = [for (i in 0...MAX_CONCURRENT) -1];
+		
+		LOG.log('Starting Job `$name`');
+		
 		status = CJobStatus.start;
-		onJobStatus(status, this);
+		events.emit("jobStatus", status, this);
 		feedQueue();
 		
 	}//---------------------------------------------------;
@@ -259,7 +289,7 @@ class CJob
 				LOG.log('Job Complete : `$name`');
 				kill();
 				status = CJobStatus.complete;
-				onJobStatus(status, this);
+				events.emit("jobStatus", status, this);
 				if (onComplete != null) onComplete(true);
 			}
 
@@ -309,7 +339,7 @@ class CJob
 		TASKS_RUNNING --;
 		slots_active[t.SLOT] = false;
 		slots_progress[t.SLOT] = -1;
-		if(!t.FLAG_PROGRESS_DISABLE) TASKS_COMPLETED_PROGRESS += TASK_PROGRESS_RATIO * 100;
+		if(!t.FLAG_PROGRESS_DISABLE) TASKS_P_PRECALC += TASKS_P_RATIO * 100;
 		currentTasks.remove(t);
 		t.kill();
 	}//---------------------------------------------------;
@@ -319,10 +349,10 @@ class CJob
 	function calculateProgress()
 	{
 		// Completed Progress + Current Progress
-		PROGRESS_TOTAL = TASKS_COMPLETED_PROGRESS;
+		PROGRESS_TOTAL = TASKS_P_PRECALC;
 		for (i in 0...MAX_CONCURRENT)
 		{
-			if (slots_active[i]) PROGRESS_TOTAL += slots_progress[i] * TASK_PROGRESS_RATIO;
+			if (slots_active[i]) PROGRESS_TOTAL += slots_progress[i] * TASKS_P_RATIO;
 		}
 	}//---------------------------------------------------;
 	
@@ -330,7 +360,7 @@ class CJob
 	function _onTaskStatus(s:CTaskStatus,t:CTask)
 	{
 		// Pass this through
-		onTaskStatus(s, t);
+		events.emit("taskStatus", s, t);
 
 		switch(s)
 		{
@@ -338,8 +368,9 @@ class CJob
 				LOG.log('Task Completed ' + t.toString());
 				taskData = t.dataSend;
 				TASKS_COMPLETE++;
+				if (!t.FLAG_PROGRESS_DISABLE) TASKS_P_COMPLETE ++;
 				TASK_LAST = t;
-				onJobStatus(CJobStatus.taskEnd, this);
+				events.emit("jobStatus", CJobStatus.taskEnd, this);
 				killTask(t);
 				feedQueue();
 
@@ -350,8 +381,7 @@ class CJob
 				TASK_LAST = t;
 				slots_progress[t.SLOT] = t.PROGRESS;
 				calculateProgress();
-				onJobStatus(CJobStatus.progress, this);
-				
+				events.emit("jobStatus", CJobStatus.progress, this);
 			// --
 			case CTaskStatus.fail:
 				LOG.log('ERROR: Task Failed ' + t.toString());
@@ -361,7 +391,7 @@ class CJob
 			// --
 			case CTaskStatus.start:
 				TASK_LAST = t;
-				onJobStatus(CJobStatus.taskStart, this);
+				events.emit("jobStatus", CJobStatus.taskStart, this);
 				
 			default:
 		}// --
@@ -377,21 +407,31 @@ class CJob
 		
 		kill();
 		status = CJobStatus.fail;
-		onJobStatus(status, this);
+		events.emit("jobStatus", status, this);
 		if (onComplete != null) onComplete(false);
 		
 	}//---------------------------------------------------;
 	
 	// Cleanup code, called on FAIL and COMPLETE
-	function kill()
+	// Also Can be called from user on program force exit to do cleanups
+	public function kill()
 	{
 		if (IS_KILLED) return; IS_KILLED = true;
+		
+		// ERROR: 	Removing listeners, cancels any 'oncomplete' events !!
+		//			so, for now comment these out:
+		
+		//events.removeAllListeners('jobStatus');
+		//events.removeAllListeners('taskStatus');
+		//events.removeAllListeners('complete');
 		
 		// Clear any running task
 		for (i in currentTasks) i.kill();
 		
 		// Clear any waiting task (just in case)
 		for (i in taskQueue) i.kill();
+		
+		LOG.log("Job Killed - " + name);
 	}//---------------------------------------------------;
 	
 }// --
