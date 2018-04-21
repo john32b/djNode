@@ -77,7 +77,7 @@ class CLIApp
 		 */
 		proc.once("error", function(er:Dynamic){
 			events.emit("close", false, er.message);
-			kill();
+			//kill();
 		});
 		
 		
@@ -96,7 +96,7 @@ class CLIApp
 				LOG.log('Process `$exePath` End - [ OK ]');
 				events.emit("close", true);
 			}
-			kill();
+			//kill();
 		});
 		
 		
@@ -116,15 +116,14 @@ class CLIApp
 	}//---------------------------------------------------;
 	
 	/**
-	   Free up resources
+	 * Force kill the CLI APP
 	**/
-	function kill()
+	public function kill()
 	{
 		if (proc != null)
 		{
-			proc.removeAllListeners("close");
-			proc.removeAllListeners("stdOut");
-			proc.removeAllListeners("stdErr");
+			proc.removeAllListeners();
+			proc.kill();
 			proc = null;
 		}
 		

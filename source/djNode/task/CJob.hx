@@ -24,6 +24,7 @@
 					taskStart	:	A new task just started (Read job.TASK_LAST)
 					taskEnd		:	A task just ended		(Read job.TASK_LAST)
 					fail		:	Job has failed
+					kill		:	The job has been force killed
 	
 		'taskStatus' : Called whenever a Task Status changes
 					<CJobStatus, CJob>
@@ -57,6 +58,7 @@ enum CJobStatus
 	complete;	// Job is complete
 	start;		// Job has just started
 	fail;		// Job has failed
+	forceKill;	// Job has been force killed
 	progress;	// Job progress has been updated
 	taskStart;	// A New task has started
 	taskEnd;	// A task has ended
@@ -178,12 +180,8 @@ class CJob
 				// recalculate past tasks
 				TASKS_P_PRECALC = TASKS_P_RATIO * 100 * TASKS_P_COMPLETE;
 				calculateProgress();
-				// TODO: report progress?
 			}
 			
-			LOG.log('NEW RATIO --- $TASKS_P_RATIO');
-			LOG.log('NEW TASKS_P_TOTAL --- $TASKS_P_TOTAL');
-			LOG.log('NEW TASKS_P_PRECALC --- $TASKS_P_PRECALC');
 		}
 		
 		return this;
@@ -287,9 +285,9 @@ class CJob
 			{
 				// Job Complete
 				LOG.log('Job Complete : `$name`');
-				kill();
 				status = CJobStatus.complete;
 				events.emit("jobStatus", status, this);
+				kill();
 				if (onComplete != null) onComplete(true);
 			}
 
@@ -405,25 +403,20 @@ class CJob
 		LOG.log('Job Failed :' + name);
 		LOG.log('           :' + ERROR.message);
 		
-		kill();
 		status = CJobStatus.fail;
 		events.emit("jobStatus", status, this);
-		if (onComplete != null) onComplete(false);
 		
+		kill();
+		if (onComplete != null) onComplete(false);
 	}//---------------------------------------------------;
 	
 	// Cleanup code, called on FAIL and COMPLETE
 	// Also Can be called from user on program force exit to do cleanups
-	public function kill()
+	function kill()
 	{
 		if (IS_KILLED) return; IS_KILLED = true;
 		
-		// ERROR: 	Removing listeners, cancels any 'oncomplete' events !!
-		//			so, for now comment these out:
-		
-		//events.removeAllListeners('jobStatus');
-		//events.removeAllListeners('taskStatus');
-		//events.removeAllListeners('complete');
+		events.removeAllListeners();
 		
 		// Clear any running task
 		for (i in currentTasks) i.kill();
@@ -432,6 +425,15 @@ class CJob
 		for (i in taskQueue) i.kill();
 		
 		LOG.log("Job Killed - " + name);
+	}//---------------------------------------------------;
+	
+	public function forceKill()
+	{
+		if (IS_KILLED) return;
+		if (status == CJobStatus.start) {
+			events.emit("jobStatus", CJobStatus.forceKill, this);
+		}
+		kill();
 	}//---------------------------------------------------;
 	
 }// --

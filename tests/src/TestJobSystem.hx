@@ -29,9 +29,7 @@ class TestJobSystem extends TestTemplate
 			var job = new CJob();
 				job.events.on("taskStatus", onTaskStatus);
 				job.MAX_CONCURRENT = 1;
-				
 				job.onComplete = function(a){doNext();};
-			
 				job.add(new CTestTask(300));
 				job.add(new CTestTask(300));
 				job.addAsync(new CTestTask(800));
@@ -55,7 +53,7 @@ class TestJobSystem extends TestTemplate
 				job.onComplete = function(a){doNext();};
 				flag_report_progress = false;
 				job.add(new CTestTask(300));
-				job.add(new CTestTask(300).addMore(2, 400));
+				job.add(new CTestTask(300).addMore(3, 400));
 				job.addAsync(new CTestTask(800));
 				job.addAsync(new CTestTask(1000, 700));
 				job.addAsync(new CTestTask(2000,700));

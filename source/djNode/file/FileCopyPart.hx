@@ -45,6 +45,8 @@ class FileCopyPart
 	// 'complete' : error<String> 	// If error==null, then operation [OK]
 	public var events:IEventEmitter;
 	
+	var dest_stream:WriteStream;
+	
 	// --
 	public function new() 
 	{
@@ -84,7 +86,7 @@ class FileCopyPart
 		LOG.log('Copying `$inputFile` Bytes [$readStart [len]-> $readLen] to `$outputFile`');
 		
 		// --
-		var dest_stream:WriteStream = Fs.createWriteStream(outputFile, {
+		dest_stream = Fs.createWriteStream(outputFile, {
 			flags:forceNewFile?FsOpenFlag.WriteCreate:FsOpenFlag.AppendCreate
 		});
 		dest_stream.once("error", function(err:Error){
@@ -121,12 +123,23 @@ class FileCopyPart
 			}
 			
 			Fs.closeSync(data);
-
 			dest_stream.once("close", function() { events.emit("complete"); } );
 			dest_stream.end();
+			
 		});
 		
-		
+	}//---------------------------------------------------;
+	
+	// Force stop any operations
+	public function kill()
+	{
+		events.removeAllListeners();
+		if (dest_stream != null)
+		{
+			dest_stream.removeAllListeners();
+			dest_stream.end();
+			dest_stream = null;
+		}
 	}//---------------------------------------------------;
 	
 }// --

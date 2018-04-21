@@ -24,12 +24,6 @@ class TestJobReport extends TestTemplate
 				j.add(new CTestTask(300, 'Initializing'));
 				// Starting with - will not report progress
 				j.add(new CTestTask(500, '-No Progress Report').addMore(3, 400));
-	
-			
-				//j.addAsync(new CTestTask(200,'Compressing File 1'));
-				//j.addAsync(new CTestTask(3200,'Compressing File 2'));
-				//j.addAsync(new CTestTask(3200, 'Compressing File 3'));
-				
 				j.add(new CTestTask(500,'Finalizing'));
 			var report = new CJobReport(j, false, true);
 

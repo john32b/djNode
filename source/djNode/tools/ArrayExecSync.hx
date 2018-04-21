@@ -40,6 +40,7 @@ class ArrayExecSync<T>
 	}//---------------------------------------------------;
 	
 	public function next() {
+		if (queue == null) return;
 		if (++counter < queue.length) {
 			queue_action(queue[counter]);
 		} else {

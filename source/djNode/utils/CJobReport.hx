@@ -89,6 +89,12 @@ class CJobReport
 		}
 		
 		slotCursorJump = [];
+		
+		// In case the job is running, call the initializer now.
+		if (j.status != CJobStatus.waiting)
+		{
+			onJobStatus(CJobStatus.start, j);
+		}
 	}//---------------------------------------------------;
 	
 	// User code for before starting
@@ -125,6 +131,10 @@ class CJobReport
 
 			case CJobStatus.fail:
 				doCompleteJob(false);
+				
+			case CJobStatus.forceKill:
+				doCompleteJob(false, true);	// User Exit ?
+				
 				
 			case CJobStatus.progress:
 				
@@ -234,7 +244,7 @@ class CJobReport
 		
 	
 	// Print ending info and reset cursors etc
-	function doCompleteJob(success:Bool)
+	function doCompleteJob(success:Bool,aborted:Bool = false)
 	{
 		T.cursorShow();
 		T.restorePos();
@@ -243,9 +253,9 @@ class CJobReport
 		if (flag_pre_post_infos)
 		{
 			if(success)
-			T.fg('green').println(" Complete");
+				T.fg('green').println(" Complete");
 			else
-			T.fg('red').println(" Failed");
+				T.fg('red').println(aborted?" Aborted":" Failed");
 		}
 		
 		T.resetFg();
