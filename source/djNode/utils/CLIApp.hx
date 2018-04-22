@@ -109,8 +109,8 @@ class CLIApp
 				
 		if (onStdOut != null)
 		{
-			proc.stderr.setEncoding("utf8");
-			proc.stderr.on("data", onStdOut);
+			proc.stdout.setEncoding("utf8");
+			proc.stdout.on("data", onStdOut);
 		}
 		
 	}//---------------------------------------------------;
