@@ -121,14 +121,17 @@ class BaseApp
 				//T.print(Std.string(ss)).endl();
 				//#end
 				
-				LOG.log("Critical Error - ", 4);
+				LOG.log("-------- !! Critical Error !! --------", 4);
 				
-				if (Std.is(err, Error)) {
+				if (Std.is(err, Error)) 
+				{
 					LOG.log(err.message, 4);
 					exitError(err.message);
-				}	
+				}else
+				{
 					LOG.log(err, 4);
 					exitError(err);
+				}
 		});
 		
 		#end
@@ -429,7 +432,7 @@ class BaseApp
 	 **/
 	function exitError(text:String, showHelp:Bool = false):Void
 	{
-		T.printf('~bg_darkred~~white~ ERROR ~!~ ~red~$text\n');
+		T.printf('\n~bg_darkred~~white~ ERROR ~!~ ~red~$text\n');
 		if (showHelp) T.printf('~darkgray~ ~line2~~yellow~ -help ~!~ for usage info\n');
 		Sys.exit(1);
 	}//---------------------------------------------------;

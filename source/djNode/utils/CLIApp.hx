@@ -57,8 +57,8 @@ class CLIApp
 
 	/**
 	   Start the child process
-	   @param	arguments
-	   @param	workingDir
+	   @param	arguments Put arguments inside a string Array
+	   @param	workingDir Optional
 	**/
 	public function start(?arguments:Array<String>, ?workingDir:String)
 	{

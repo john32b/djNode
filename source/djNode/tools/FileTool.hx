@@ -8,31 +8,32 @@
 package djNode.tools;
 
 import js.Error;
+import js.Node;
 import js.node.Buffer;
 import js.node.Crypto;
 import js.node.Fs;
 import js.node.fs.Stats;
 import js.node.Path;
 
-//import dj.tools.LOG;
-
 
 class FileTool
 {
 	
-	// Recursivly creates a directory structure
-	// ~ Throws errors ~
-	// <inPath> will be created if it does not exist
-	// e.g. createRecursiveDir("c:\\myfolder\\temp1\\temp2\\temp3");
+	/**
+	   Recursively creates a directory structure
+	   <inPath> will be created if it does not exist
+	   e.g. createRecursiveDir("c:\\myfolder\\temp1\\temp2\\temp3");
+	   @param	inPath The path to be created
+	**/
 	public static function createRecursiveDir(inPath:String):Void {
 		
 		#if !js
 		throw "Not supported yet";
-		#else
+		#end
 		
 		var paths:Array<String> = Path.normalize(inPath).split(Path.sep);
 		var cM = paths.length;
-		if (cM <= 0) throw 'Path is invalid/Empty';
+		if (cM <= 0) throw "Path is empty!";
 		var c = 0;
 		var p1 = "";	// Cummulative path for iterations 
 		// Check to see if the path is drive path (win32 only)
@@ -56,10 +57,7 @@ class FileTool
 			}
 			c++;
 		}
-		
-		#end
 	}//---------------------------------------------------;
-	
 	
 	/**
 	* Remove directory recursively
@@ -81,8 +79,6 @@ class FileTool
 			Fs.rmdirSync(dir_path);
 		}
 	}//---------------------------------------------------;
-	
-	
 	
 	/**
 	 * Check to see if the program can write to target folder
@@ -118,9 +114,11 @@ class FileTool
 	}//---------------------------------------------------;
 	
 	
-	
-	// --
-	// Since NODE is deprecating existsSync, I am writing a very simple one.
+	/**
+	   Since nodeJS is deprecating existsSync. So I wrote this.
+	   @param	path
+	   @return
+	**/
 	public static function pathExists(path:String):Bool
 	{
 		try {
@@ -162,7 +160,7 @@ class FileTool
 
 	/**
 	 * @SYNC
-	 * Copies a file and callsback when done
+	 * Copies a file
 	 * @param	source
 	 * @param	dest
 	 */
@@ -188,23 +186,70 @@ class FileTool
 		*/
 	}//---------------------------------------------------;
 
-	/*
+	/**
 	 * Returns the full path filename of every file in a folder
+	 * PRE: Folder Exists
+	 * @param inPath Get files from this folder only
+	 * @param fullPath If true the result Array will include the full path of each file. False for just the filenames
 	 */ 
-	public static function getFileListFromDir(inPath:String):Array<String> {
+	public static function getFileListFromDir(inPath:String, fullPath:Bool = false):Array<String> {
 		
 		#if !js
 		throw "Not supported yet";
 		#end
-
+		
 		var allfiles = Fs.readdirSync(Path.normalize(inPath));
-		var fileList:Array<String> = new Array();
-		for (i in allfiles) {
-			var stats = Fs.statSync(Path.join(inPath, i));
-			if (stats.isFile()) fileList.push(i);
+		var ret:Array<String> = [];
+		for (f in allfiles)
+		{
+			if (Fs.statSync(Path.join(inPath, f)).isFile()) 
+			{
+				if (fullPath)
+					ret.push(Path.join(inPath, f)); 
+				else
+					ret.push(f);
+			}
 		}
-		return fileList; /// TODO, does it return the full path?
+		return ret;
 	}//---------------------------------------------------;
+	
+	/**
+	   Returns an Array with FullPaths of all files in a Directory Recursively. 
+	   Meaning it will traverse all subdirectories as well
+	   @param	rootPath The Root Path to start
+	   @param	ext If set, it will only return files matching these extensions. 
+				CASE INSENSITIVE for results. MUST SET EXTENSIONS TO LOWER CASE 
+				e.g. ['cue','mp3']
+	   @return
+	**/
+	public static function getFileListFromDirR(rootPath:String, ?ext:Array<String>):Array<String>
+	{
+		var res:Array<String> = [];
+		
+		// - Push files to `res` and call again for folders
+		function pushFiles(path:String)
+		{
+			var files = Fs.readdirSync(Path.normalize(path));
+			
+			for (f in files)
+			{
+				// File Full Path
+				var fp = Path.join(path, f);
+				if (Fs.statSync(fp).isDirectory()){
+					pushFiles(fp);
+				}else{
+					if (ext != null)
+						if (ext.indexOf(getFileExt(f)) >-1)
+							res.push(fp);
+				}
+			}
+		}// --
+		
+		pushFiles(rootPath);
+		
+		return res;
+	}//---------------------------------------------------;
+	
 	
 	
 	/** 
@@ -265,8 +310,6 @@ class FileTool
 		// Returns full filepaths
 		return fileList;
 	}//---------------------------------------------------;
-	
-	
 	
 	/**
 	 * SYNC - Calculate a File's MD5 

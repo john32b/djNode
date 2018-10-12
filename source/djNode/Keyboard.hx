@@ -170,7 +170,7 @@ class Keyboard
 	// --
 	static function onKeyData(data:String)
 	{
-		if (FLAG_CAN_BREAK && (data == Keycode.CTRLC || data==Keycode.ESC))
+		if (FLAG_CAN_BREAK && (data == Keycode.CTRLC))
 		{
 			stop();
 			if (onBreak != null) onBreak();

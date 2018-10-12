@@ -27,11 +27,11 @@
  *********************************************************/
 package djNode.tools;
 
+import haxe.Log;
+import haxe.PosInfos;
 import js.Node;
 import js.node.Fs;
 import js.node.Path;
-
-import haxe.PosInfos;
 
 // -- Use the logging function on the debug builds only --
 
@@ -115,6 +115,21 @@ class LOG
 		if (flag_socket_log) untyped( io.close() ); // untyped because nodejsLib is complaining
 	}//--------------------------------------------;
 	
+	/**
+	   Pipe all traces to Log.log()
+	**/
+	public static function pipeTrace()
+	{
+		Log.trace = function(msg:Dynamic, ?pos:PosInfos)
+		{
+			log(msg, 1, pos);
+			if ( pos != null && pos.customParams != null ) 
+			{
+				for ( v in pos.customParams ) log(v, 1, pos);
+			}
+		}
+		
+	}//---------------------------------------------------;
 	
 	/**
 	 * Logs a message to the logger
@@ -123,11 +138,11 @@ class LOG
 	 * @param	level 0:Debug, 1:Info, 2:Warn, 3:Error, 4:Fatal
 	 * @param	pos Autofilled by the compiler
 	 */
-	public static function log(message:Dynamic, level:Int = 1, ?pos:PosInfos)
+	public static function log(obj:Dynamic, level:Int = 1, ?pos:PosInfos)
 	{
 		if (level < logLevel) return;
-
-		var logmsg:LogMessage = { pos:pos, log:message, level:level };
+		
+		var logmsg:LogMessage = { pos:pos, log:Std.string(obj), level:level };
 		
 		if (flag_keep_in_memory) {
 			// If the buffer is full, remove the oldest
@@ -154,7 +169,8 @@ class LOG
 	 * @param	level
 	 * @param	pos
 	 */
-	public static function logObj(obj:Dynamic, level:Int = 1, ?pos:PosInfos)
+	@:deprecated("Use log()")
+	static function logObj(obj:Dynamic, level:Int = 1, ?pos:PosInfos)	
 	{
 		if (level < logLevel) return;
 						
@@ -163,10 +179,10 @@ class LOG
 		}
 			
 		if (flag_realtime_file && logFile != null) {
-			push_File( { level:level, pos:pos, log:"---- OBJECT ----\n" + Std.string(obj) } );
+			push_File( { level:level, pos:pos, log:"(object): " + Std.string(obj) } );
 		}
 		
-		if (onLog != null) onLog( { pos:pos, level:level, log : " OBJECT :: \n" + Std.string(obj) } );
+		if (onLog != null) onLog( { pos:pos, level:level, log : "(object): " + Std.string(obj) } );
 	}//---------------------------------------------------;
 	
 	
