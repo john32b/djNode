@@ -46,6 +46,9 @@ package djNode.task;
 
 import djNode.task.CTask;
 import djNode.tools.LOG;
+import haxe.CallStack;
+import js.Node;
+import js.node.Process;
 import js.node.events.EventEmitter;
 
 import js.Error;
@@ -112,16 +115,17 @@ class CJob
 	public var status(default, null):CJobStatus;
 	
 	// Job Events Object
+	// "jobStatus"  : -> Whenever it changes
+	// "taskStatus" : -> Whenever it changes
 	public var events:IEventEmitter;
 	
-	// #USERSET #OPTIONAL
-	// Same call as events.on("complete");
+	// #USERSET
 	// Called whenever the Job Completes or Fails
 	// True : success, False : Error (read the ERROR field)
 	public var onComplete:Bool->Void = null;
 	
 	// If the job has failed, this holds the ERROR code, copied from task ERROR code
-	public var ERROR(default, null):Error;
+	public var ERROR(default, null):String;
 
 	// Keep track of whether the job is done and properly shutdown
 	var IS_KILLED:Bool = false;
@@ -197,7 +201,6 @@ class CJob
 	{
 		taskQueue.unshift(t); return addT(t);
 	}//---------------------------------------------------;
-	
 	// Adds a task in the queue that will be executed ASYNC
 	public function addAsync(t:CTask):CJob
 	{
@@ -208,6 +211,11 @@ class CJob
 	{
 		t.async = true; return addNext(t);
 	}//---------------------------------------------------;	
+	// Add a quicktask. Same as add(new CTask(...));
+	public function addQ(fn:CTask->Void,?n:String,?d:String):CJob
+	{
+		return add(new CTask(fn, n, d));
+	}//---------------------------------------------------;
 	
 	
 	// # USER CODE
@@ -229,13 +237,13 @@ class CJob
 		try{
 			init();
 		}catch (e:Error){
-			fail(e.message); return;
+			return fail(e.message);
 		}catch (e:String){
-			fail(e); return;
+			return fail(e);
 		}
 		
 		if (taskQueue.length == 0){
-			fail("No Tasks to run"); return;
+			return fail("No Tasks to run");
 		}
 		
 		if (TASKS_P_RATIO == 0) // No tracks report progress
@@ -253,8 +261,8 @@ class CJob
 		status = CJobStatus.start;
 		events.emit("jobStatus", status, this);
 		feedQueue();
-		
 	}//---------------------------------------------------;
+	
 	
 	// Scans the task queue and executes them in order
 	// also executes multiple at once if they are async.
@@ -278,7 +286,6 @@ class CJob
 				}
 			}// else the buffer is full
 			
-			
 		}else{
 			// Make sure there are no async tasks waiting to be completed
 			if (TASKS_COMPLETE == TASKS_TOTAL)
@@ -290,7 +297,6 @@ class CJob
 				kill();
 				if (onComplete != null) onComplete(true);
 			}
-
 		}
 		
 	}//---------------------------------------------------;
@@ -327,7 +333,6 @@ class CJob
 		}catch (e:String){
 			t.fail(e);
 		}
-		
 	}//---------------------------------------------------;
 	
 	// End a task properly
@@ -355,7 +360,7 @@ class CJob
 	}//---------------------------------------------------;
 	
 	//-- Internal task status handler
-	function _onTaskStatus(s:CTaskStatus,t:CTask)
+	function _onTaskStatus(s:CTaskStatus, t:CTask)
 	{
 		// Pass this through
 		events.emit("taskStatus", s, t);
@@ -370,7 +375,9 @@ class CJob
 				TASK_LAST = t;
 				events.emit("jobStatus", CJobStatus.taskEnd, this);
 				killTask(t);
-				feedQueue();
+				
+				// NEW : Avoid filling up the callstack
+				Node.process.nextTick(feedQueue);
 
 			// TODO: I could report the progress on a timer
 			//		 This is not ideal if there are many tasks running at once (CPU wise)
@@ -384,7 +391,7 @@ class CJob
 			case CTaskStatus.fail:
 				LOG.log('ERROR: Task Failed ' + t.toString());
 				killTask(t);
-				fail(t.ERROR.message);
+				fail(t.ERROR);
 				
 			// --
 			case CTaskStatus.start:
@@ -397,11 +404,11 @@ class CJob
 	}//---------------------------------------------------;
 	
 	// Force fail the JOB and cancel all remaining tasks, or this is called when a Task Fails
-	function fail(?msg:String)
+	function fail(msg:String = "")
 	{
-		ERROR = new Error(msg);
+		ERROR = msg;
 		LOG.log('Job Failed :' + name);
-		LOG.log('           :' + ERROR.message);
+		LOG.log('           :' + ERROR);
 		
 		status = CJobStatus.fail;
 		events.emit("jobStatus", status, this);
@@ -434,6 +441,18 @@ class CJob
 			events.emit("jobStatus", CJobStatus.forceKill, this);
 		}
 		kill();
+	}//---------------------------------------------------;
+	
+	/**
+	   Get filename and line of thrown
+	**/
+	public static function getExStackThrownInfo()
+	{
+		var str = "";
+		var a = CallStack.toString(CallStack.exceptionStack());
+		var r = ~/.*\/(.+) line (\d+)/;
+		if (r.match(a.split('\n')[1])) str = r.matched(1) + ":" + r.matched(2);
+		return str;
 	}//---------------------------------------------------;
 	
 }// --

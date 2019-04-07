@@ -88,7 +88,7 @@ class Terminal
 	private var colormap_fg:Map<Color,String>;
 	private var colormap_bg:Map<Color,String>;	
 	
-	// The escape Sequence can also be '\033[', or even '\e[' in linux
+	// The escape Sequence can also be '\033[', or even '\e[' in linux ''
 	// I am not using the escape sequence as a reference anywhere, as hard typing is faster.
 	private static inline var ESCAPE_SEQ 	= '\x1B['; 	
 	private static inline var _BOLD 		= '\x1B[1m';
@@ -204,6 +204,26 @@ class Terminal
 		drawLine();
 	}//---------------------------------------------------;
 	
+	
+	/**
+	   Resize the Terminal Window,
+	   - Not all terminals are resizable
+	   - Window default 'cmd' is resizable OK
+	   - 
+	**/
+	public function resizeTerminal(w:Int, h:Int)
+	{
+		Sys.command('mode con: cols=$w lines=$h');
+		// print('\033[8;$h;$w');
+	}//---------------------------------------------------;
+	
+	/**
+	   Set the title of the terminal window
+	**/
+	public function setTitle(s:String)
+	{
+		Sys.command('title $s');
+	}//---------------------------------------------------;
 	
 	/**
 	 * Get Maximum Terminal window width
@@ -458,9 +478,9 @@ class Terminal
 	 * Write a text with Header 1 formatting
 	 * @param text
 	 */
-	public function H1(text:String, color:String = "darkgreen")
+	public function H1(text:String, color:String = "darkmagenta")
 	{		
-		printf('~$color~ $H1_SYMBOL~!~ ~white~~bg_$color~$text~!~\n ~line~');
+		printf('~black~~bg_$color~ $H1_SYMBOL~white~ $text ~!~\n~line~');
 	}//---------------------------------------------------;
 	
 	/**
@@ -530,10 +550,9 @@ class Terminal
 	 */
 	public function sprintf(str:String):String
 	{
-		// Match anything between ~ ~, (including the ~ symbols)
-		return(~/(~\S[^~]*~)/g.map(str, function(reg) {
-			// Remove the leading and trailing '~' symbol
-			var s = reg.matched(0).substring(1).substr(0, -1);
+		// Match anything between ~ ~
+		return(~/~(\S[^~]*)~/g.map(str, function(reg) {
+			var s = reg.matched(1);
 			switch(s) {
 			case "!"	: return _RESET_ALL;
 			case "!fg"	: return _RESET_FG;
@@ -543,7 +562,6 @@ class Terminal
 			case "line":  return StringTools.lpad("", DEFAULT_LINE_SYMBOL, DEFAULT_LINE_WIDTH) + "\n";
 			case "line2": return StringTools.lpad("", DEFAULT_LINE_SYMBOL, Math.ceil(DEFAULT_LINE_WIDTH / 2)) + "\n";
 			
-
 			// Proceed checking for colors or bg colors:
 			default :
 			try{

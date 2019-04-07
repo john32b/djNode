@@ -81,6 +81,9 @@ class LOG
 	// How many messages to keep in memory, -- Avoid hogging the ram with a huge message log.
 	static var param_memory_buffer:Int = 8192;
 
+	// If true will show a the message type at the start of the string on file logs
+	public static var FLAG_SHOW_MESSAGE_TYPE = false;
+	
 	//====================================================;
 	// FUNCTIONS
 	//====================================================;
@@ -160,32 +163,7 @@ class LOG
 			
 		if (onLog != null) onLog(logmsg);
 	}//---------------------------------------------------;
-	
-	/**
-	 * Logs an object to the logger. 
-	 * @note, Does not store it to the memory log
-	 * 
-	 * @param	obj
-	 * @param	level
-	 * @param	pos
-	 */
-	@:deprecated("Use log()")
-	static function logObj(obj:Dynamic, level:Int = 1, ?pos:PosInfos)	
-	{
-		if (level < logLevel) return;
-						
-		if (flag_socket_log) {
-			push_SocketObj(obj, level, pos);
-		}
-			
-		if (flag_realtime_file && logFile != null) {
-			push_File( { level:level, pos:pos, log:"(object): " + Std.string(obj) } );
-		}
 		
-		if (onLog != null) onLog( { pos:pos, level:level, log : "(object): " + Std.string(obj) } );
-	}//---------------------------------------------------;
-	
-	
 	/**
 	 * Set Logging through an http Slot,
 	 * Connect to http://localhost:80
@@ -240,12 +218,10 @@ class LOG
 	 */
 	static function push_File(log:LogMessage)
 	{
-		var m = 
-			messageTypes[log.level] + " (" +  
-			log.pos.fileName + ":" + log.pos.lineNumber + ") " +
-			// " [" + log.pos.className + "]" + 
-			log.log + "\n";
-		
+		var m = "";
+		if (FLAG_SHOW_MESSAGE_TYPE) m += messageTypes[log.level] + " ";
+		m += "(" +  log.pos.fileName.split('/').pop() + ":" + log.pos.lineNumber + ") ";
+		m += log.log + "\n";
 		Fs.appendFileSync(logFile, m, 'utf8');
 	}//---------------------------------------------------;
 		

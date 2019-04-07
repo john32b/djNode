@@ -160,7 +160,7 @@ class FileTool
 
 	/**
 	 * @SYNC
-	 * Copies a file
+	 * Copies a file. Destination will be created or overwritten
 	 * @param	source
 	 * @param	dest
 	 */
@@ -235,12 +235,21 @@ class FileTool
 			{
 				// File Full Path
 				var fp = Path.join(path, f);
+				try{
 				if (Fs.statSync(fp).isDirectory()){
 					pushFiles(fp);
 				}else{
 					if (ext != null)
+					{
 						if (ext.indexOf(getFileExt(f)) >-1)
 							res.push(fp);
+					}else
+					{
+						res.push(fp);
+					}
+				}}catch (e:Error){
+					// Probably some not accessible file/folder
+					return;
 				}
 			}
 		}// --
@@ -359,5 +368,16 @@ class FileTool
 		return Path.join(Path.parse(file).dir, Path.parse(file).name);
 	}//---------------------------------------------------;
 	
+	
+	/**
+	   Return the full path of a file that is relative to the application path.
+	   e.g (appFileToFullPath('settings.ini') ==> 'c:\code\application\settings.ini')
+	       where 'c:\code\application' is where the app is
+	   @param	filePath Short Path of file
+	**/
+	public static function appFileToFullPath(filePath:String)
+	{
+		return Path.join(Path.dirname(Sys.programPath()), filePath);
+	}//---------------------------------------------------;
 
 }

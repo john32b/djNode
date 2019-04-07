@@ -19,7 +19,13 @@
  * Examples:
  * ------------
  * 
- * 	
+ * 
+ * 
+ * Changes since last ver:
+ * ----------------
+ * 	- Options no longer require an initial `-` when declared
+ *  - NEW: FLAG_USE_SLASH_FOR_OPTION, Can set this on init()
+ *         Help will require `/?` or `-help` depending 
  * 
  ========================================================*/
 package djNode;
@@ -47,12 +53,15 @@ class BaseApp
 	// Pointer to the global terminal, small varname for quick access from within this class
 	var T(default, null):Terminal;
 	
+	// # USERSET
+	// If true will require '/' for options, else '-'
+	var FLAG_USE_SLASH_FOR_OPTION:Bool = false;
 	
 	// #USERSET
 	// Fill this object up (check the typedef for more info)
 	var PROGRAM_INFO:AppInfo = {
-		name:"nodeJS Application",
-		version:"0.1"
+		name:"CLI Application",
+		version:"0.1",
 	}
 	
 	// #USERSET
@@ -66,9 +75,7 @@ class BaseApp
 		helpInput:null,
 		helpOutput:null,
 		Actions:[],
-		Options:[
-			['-o', "output", "", "yes"]
-		]
+		Options:[]
 	};
 	
 	// Holds Array of all inputs
@@ -87,7 +94,11 @@ class BaseApp
 	// Holds the currently enabled <action>
 	// Holds Action.NAME ( second Array index )
 	var argsAction:String = null;
-	
+
+	// Autoset, actual symbol to expect from optons e.g. '-' , '/'
+	@:noCompletion var _optSmb:String;
+	// Autoset, actual symbol to expect for help "help" or "?"
+	@:noCompletion var _helpSmb:String;
 	
 	/**
 	 * 
@@ -97,7 +108,7 @@ class BaseApp
 		LOG.init();
 		TERMINAL = new Terminal();
 		T = TERMINAL;
-		
+
 		#if nodejs
 		
 		// Normal Exit, code 0 is OK, other is Error
@@ -109,29 +120,17 @@ class BaseApp
 		// User pressed CTRL+C
 		Node.process.once("SIGINT", function() { Sys.exit(1); } );
 		
-		// Can also be user errors that bubbled up here.
-		// Critical Error, will exit the program
+		// - Will never fire if you use "jstack" library
 		Node.process.once("uncaughtException", function(err:Dynamic) 
 		{
-				//#if debug
-				//+ This info isn't really useful?
-				//var ss = haxe.CallStack.toString(haxe.CallStack.callStack().slice(0, 6));	// Get the last 6 stacks
-				//LOG.log("Callstack:\n" + Std.string(ss), 4);
-				//T.printf('~!~~yellow~ - CALLSTACK - ~!~');
-				//T.print(Std.string(ss)).endl();
-				//#end
-				
-				LOG.log("-------- !! Critical Error !! --------", 4);
-				
-				if (Std.is(err, Error)) 
-				{
-					LOG.log(err.message, 4);
-					exitError(err.message);
-				}else
-				{
-					LOG.log(err, 4);
-					exitError(err);
-				}
+			LOG.log(" ** Uncaught Exception ** ", 4);
+			if (Std.is(err, Error))  {
+				LOG.log(err.stack, 4);
+				exitError(err.message);
+			}else {
+				LOG.log(err, 4);
+				exitError(err);
+			}
 		});
 		
 		#end
@@ -152,24 +151,34 @@ class BaseApp
 		LOG.log('- Action  set : ' + argsAction);
 		LOG.log('- Options set : ');
 		for (o in Reflect.fields(argsOptions)) {
-		LOG.log('\t\t\t' + o + ' : ' + Reflect.getProperty(argsOptions, o));
+		LOG.log('\t\t' + o + ' : ' + Reflect.getProperty(argsOptions, o));
 		}
 		LOG.log('-------------');
 		
-		
-		onStart();
+		// Clear the CallStack
+		Node.process.nextTick(onStart);
 		
 	}//---------------------------------------------------;
 	
 	/**
 	  Read Program Arguments, and initialize
-	  User must have set ARGS and PROGRAM_INFO before calling this
-	  @throw Argument Errors
+	  - User must have set ARGS and PROGRAM_INFO before calling this
+	  - Override this, and call it at the end
+	  @throws Argument Errors
 	**/
 	function init()
 	{
+		// -
+		_optSmb = FLAG_USE_SLASH_FOR_OPTION?"/":"-";
+		_helpSmb = FLAG_USE_SLASH_FOR_OPTION?"?":"help";
+		
 		// Just in case the program starts with non-standard colors
 		T.reset();
+		
+		// HACK, Push the output parameter now.
+		//  - Why: Have the 'ARGS.Options' object empty when user adds parameters in it
+		//  - NOTE: '-output' the dash makes it not appear in help
+		ARGS.Options.unshift(['o', "-output", "", "yes"]);
 		
 		// -- Shortcuts
 		var P = PROGRAM_INFO;
@@ -183,23 +192,23 @@ class BaseApp
 		var arg:String;
 		while ( (arg = arguments[cc++]) != null)
 		{
-			// # <option>, options start with `-`
-			if (arg.charAt(0) == "-")
+			// # <option>, options start with `-` or `/`
+			if (arg.charAt(0) == _optSmb)
 			{
 				// :: Build In <options> 
-				if (arg.toLowerCase().indexOf("-help") == 0) throw 'HELP';
-			
-				var o = getArgOption(arg);
+				if (arg.toLowerCase().indexOf(_helpSmb) == 1)
+					throw 'HELP';
+				
+				var o = getArgOption(arg.substr(1));
 				if (o == null) throw 'Illegal argument [$arg]';
 				if (o[3] != null) { // Requires Parameter
 					var nextArg:String = arguments[cc++];	
 					if (nextArg == null || getArgOption(nextArg) != null) {
 						throw 'Argument [$arg] requires a parameter';
 					}
-					Reflect.setField(argsOptions, o[0].substr(1), nextArg);
-					if (o[0] == "-o") argsOutput = nextArg;
+					Reflect.setField(argsOptions, o[0], nextArg);
 				}else{
-					Reflect.setField(argsOptions, o[0].substr(1), true);
+					Reflect.setField(argsOptions, o[0], true);
 				}
 				
 				continue;
@@ -219,6 +228,10 @@ class BaseApp
 			argsInput.push(arg);
 			
 		}//- end while ----
+		
+		// -- Some Post Logic
+		
+		if (argsOptions.o != null) argsOutput = argsOptions.o;
 		
 		
 		// # Check Arguments :: ------
@@ -276,11 +289,10 @@ class BaseApp
 	}//---------------------------------------------------;
 	
 	/**
-	 * 
+	 * User code
+	 * Override and start program
 	**/
-	function onStart()
-	{
-	}//---------------------------------------------------;
+	function onStart() {}
 	
 	/**
 	  Called whenever the program exists, normally or with errors
@@ -293,6 +305,23 @@ class BaseApp
 		T.cursorShow(); // Just in case
 	}//---------------------------------------------------;
 	
+	
+	/**
+	   Automatically call the matching function of an action
+	   - You need to define the function in the extended class
+	   - Function name = "action_" + Action
+	   @param p If TRUE will print some info on the action 
+	**/	
+	function autoCallAction(p:Bool = false)
+	{
+		var fn = Reflect.field(this, "action_" + argsAction);
+		if (fn != null && Reflect.isFunction(fn))
+		{
+			if(p) T.printf('~yellow~+ ~!~Action <~yellow~' + getArgAction(argsAction)[1] + '~!~>\n');
+			return Reflect.callMethod(this, fn, []);
+		}
+		return null;
+	}//---------------------------------------------------;
 	
 	
 	/**
@@ -339,11 +368,7 @@ class BaseApp
 			if (A.helpOutput != null){
 				A.helpOutput = "~gray~\t " + ~/(\n)/g.replace(A.helpOutput, "\n\t ");
 			}
-			
-			// - Remove the `-o` option from expected parameters
-			//	 I need to do this so it won't get printed
-			//   its always the first element, and this function is only called once.
-			A.Options.shift();	
+		
 			
 			// - Fix <action> and <option> descriptions
 			for (a in A.Actions) a[2] = __fixDescFormat(a[2]);
@@ -357,18 +382,20 @@ class BaseApp
 		if (P.executable == null) P.executable = "app.js";
 		var s:String = '   ${P.executable} ';
 		if (A.Actions.length > 0) 	s += "<action> ";
-		if (A.Options.length > 0) 	s += "-<option> <parameter> ...\n      ";
+		if (A.Options.length > 0) 	s += _optSmb + "<option> <parameter> ...\n      ";
 		if (A.inputRule != "no") {
 			s += "<input> ";
 			if (A.inputRule == "multi") s += "... ";
 		}
 		if (A.outputRule != "no"){
-			s += "-o <output> ";
+			s += _optSmb + "o <output> ";
 		}
 		T.print(s).endl().printf("~darkgray~ ~line2~");
 		
 		// -- 
+		var _pp = false;
 		if (A.inputRule != "no") {
+			_pp = true;
 			T.printf('~yellow~ <input> ~!~'); 
 			T.print(__getInfoRule(A.inputRule));
 			if (A.inputRule == "multi") T.printf("~darkcyan~ <multiple supported>");
@@ -377,11 +404,12 @@ class BaseApp
 		}
 		// --
 		if (A.outputRule != "no") {
+			_pp = true;
 			T.printf('~yellow~ <output> ~!~'); T.print(__getInfoRule(A.outputRule)).endl();
 			if (A.helpOutput != null) T.printf(A.helpOutput).endl();
 		}
 		
-		T.printf(' ~darkgray~~line2~');
+		if(_pp) T.printf(' ~darkgray~~line2~');
 		T.reset();
 		
 		// - Print <actions>
@@ -389,6 +417,7 @@ class BaseApp
 			T.printf(" ~magenta~<actions> ~!fg~");
 			T.printf("~darkmagenta~you can set one action at a time ~!~\n");
 			for (i in A.Actions) {
+				if (i[1].charAt(0) == "-") continue;
 				T.printf('~white~ ${i[0]}' + sp(HELP_MARGIN - i[0].length) + '~magenta~${i[1]}');
 				if (i[3] != null) T.printf('~darkgray~ ~ auto ext:[${i[3]}]');
 				T.endl().print(sp(HELP_MARGIN));
@@ -400,8 +429,11 @@ class BaseApp
 		if (A.Options.length > 0) {
 			T.printf(" ~cyan~<options> ~!fg~");
 			T.printf("~darkcyan~you can set many options~!~\n");
-			for (i in A.Options) {
-				T.printf('~white~ ${i[0]}' + sp(HELP_MARGIN - i[0].length) + '~cyan~${i[1]}');
+			for (i in A.Options) 
+			{
+				// Skip printing <options> whose name starts with `-`
+				if (i[1].charAt(0) == "-") continue;
+				T.printf('~white~ $_optSmb${i[0]}' + sp(HELP_MARGIN - i[0].length - 1) + '~cyan~${i[1]}');
 				if (i[3] != null) T.printf('~darkgray~ [requires parameter] ');
 				T.endl().print(sp(HELP_MARGIN));
 				T.printf('~gray~ ${i[2]}\n').reset();
@@ -411,19 +443,27 @@ class BaseApp
 	}//---------------------------------------------------;
 	
 	
+	/**
+	   Prints program information from the `PROGRAM_INFO` object
+	   @param	longer Include Description and Author
+	**/
 	function printBanner(longer:Bool = false)
 	{
 		var P = PROGRAM_INFO;
-		var col = "white"; var lineCol = "darkgray"; 
+		var col = "cyan"; var lineCol = "darkgray"; 
 		T.endl(); // one blank line at first
-		T.printf('== ~$col~~b~${P.name} v${P.version}~!~\n');
-		//t.printf(' ~lineCol~~line2~');
+		T.printf('~bg_$col~~black~==~!~~$col~~b~ ${P.name} ~darkgray~v${P.version}~!~');
+		
 		if (longer)
 		{
+			if (P.author != null) T.print(' by ${P.author}\n');
 			if (P.desc != null) T.print(' - ${P.desc}\n');
-			if (P.author != null || P.contact != null)  
-				T.print(' - ${P.author} , ${P.contact}\n');
+			if (P.info != null) T.print(' - ${P.info} \n');
+		}else
+		{
+			T.endl();
 		}
+		
 		T.printf(' ~$lineCol~~line~~!~');
 	}//---------------------------------------------------;
 	
@@ -433,7 +473,7 @@ class BaseApp
 	function exitError(text:String, showHelp:Bool = false):Void
 	{
 		T.printf('\n~bg_darkred~~white~ ERROR ~!~ ~red~$text\n');
-		if (showHelp) T.printf('~darkgray~ ~line2~~yellow~ -help ~!~ for usage info\n');
+		if (showHelp) T.printf('~darkgray~ ~line2~~yellow~ $_optSmb$_helpSmb ~!~ for usage info\n');
 		Sys.exit(1);
 	}//---------------------------------------------------;
 	
@@ -470,9 +510,9 @@ typedef AppInfo =
 {
 	name:String,		// Name
 	?desc:String,		// Description
+	?info:String,		// Project Info or contact
 	?version:String,	// Version
 	?author:String,		// Author
-	?contact:String,	// Contact Info
 	?date:String,		// Build Date
 	?executable:String	// Name of the executable
 };
@@ -493,7 +533,7 @@ typedef AppArguments =
 	
 	supportWildcards:Bool,	// If true, <*.*> and <*.ext> will be resolved. Else ERROR
 	
-	supportStrayArgs:Bool,	// If true, program will not ERROR on undeclared <actions,options>
+	supportStrayArgs:Bool,	// If true, program will not ERROR on undeclared <options>
 							// # NOT IMPLEMENTED ! !
 	
 							// # For these two . use "\n" for linebreaks.
@@ -517,16 +557,15 @@ typedef AppArguments =
 									//
 									// - e.g. ["e","Extract","Extracts file", "zip,7z"] =>
 									//		node app.js input.zip 
-	
 									
-	Options:Array<Array<String>>   // Holds Options in an array of arrays.
+	Options:Array<Array<String>>    // Holds Options in an array of arrays.
 									//
 									// [ OptionID, OptionName, OptionDescription, RequireValue ]
 									//   string,   string,     string,            String
 									//
-									// e.g. ["-t","Temp","Set Temp Folder","1"] => 
+									// e.g. ["t","Temp","Set Temp Folder","1"] => 
 									//			node app.js -t c:\temp\
-									//      ["-q","Quick","Quick operation mode",false] =>
+									//      ["q","Quick","Quick operation mode",false] =>
 									//			node app.js -q
 									// `RequireValue`
 									// 	This option requires an additional parameter (just one)

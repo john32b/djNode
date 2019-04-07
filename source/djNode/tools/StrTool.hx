@@ -18,6 +18,8 @@ package djNode.tools;
  */
 class StrTool
 {
+	// Can be externally set
+	public static var OVERFLOW_SMBL = "-";
 	
 	/**
 	   https://github.com/jdegoes/stax/blob/master/src/main/haxe/haxe/util/Guid.hx
@@ -63,7 +65,7 @@ class StrTool
 		
 		// The string needs to be cut
 		if (b < 0) {
-			return str.substring(0, length - 1) + "~";
+			return str.substring(0, length - OVERFLOW_SMBL.length) + OVERFLOW_SMBL;
 		}	
 		
 		// The string needs to be padded
@@ -156,7 +158,7 @@ class StrTool
 				}else
 				{
 					// if a word is TOO BIG and can't fit, trim it.
-					line = ar[f].substring(0, width - 1) + "~";
+					line = ar[f].substring(0, width - OVERFLOW_SMBL.length) + OVERFLOW_SMBL;
 					___ffpush(line);
 				}
 			}

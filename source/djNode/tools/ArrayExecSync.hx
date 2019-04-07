@@ -34,17 +34,17 @@ class ArrayExecSync<T>
 	public function start(?fn_action:T->Void, ?fn_complete:Void->Void):Void {
 		if (queue.length == 0) return; // throw "Queue is empty";
 		counter = -1;
-		if (fn_action != null) queue_action   = fn_action;
+		if (fn_action != null) queue_action = fn_action;
 		if (fn_complete != null) queue_complete = fn_complete;
-		next();
+		return next();
 	}//---------------------------------------------------;
 	
 	public function next() {
 		if (queue == null) return;
 		if (++counter < queue.length) {
-			queue_action(queue[counter]);
+			return queue_action(queue[counter]);
 		} else {
-			queue_complete();
+			if (queue_complete != null) return queue_complete();
 		}
 	}//---------------------------------------------------;
 	

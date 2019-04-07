@@ -135,6 +135,13 @@ class Keycode
 	+ realtime 
 	+ onEnter
 	-
+	
+	TIPS:
+	
+		- On string input the string that will be pushed will include the last \n letter
+		  so make sure you remove it. 
+		  e.g. 
+			Keyboard.startCapture(false, function(s){ res = s.substr(0,-2); });
  **/
 	
 class Keyboard

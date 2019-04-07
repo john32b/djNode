@@ -65,12 +65,12 @@ class Main extends BaseApp
 	function doTest(s:Int)
 	{
 		switch(s){
-			case 0: new TestTerminal();
-			case 1: new TestKeyboard();
-			case 2: new TestJobSystem();
-			case 3: new TestJobReport();
-			case 4: quickTest_ActionInfo();
-			case 5: Sys.exit(0);
+			case 1: new TestTerminal();
+			case 2: new TestKeyboard();
+			case 3: new TestJobSystem();
+			case 4: new TestJobReport();
+			case 5: quickTest_ActionInfo();
+			case 6: Sys.exit(0);
 		}
 	}//---------------------------------------------------;
 	

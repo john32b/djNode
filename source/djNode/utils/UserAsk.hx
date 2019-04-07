@@ -59,7 +59,7 @@ class UserAsk
 				// If I tell it to print k, it will print the \n as well
 				t.fg(Color.green).print('$userSel').reset().endl();
 				Keyboard.stop();
-				callback(userSel-1);
+				callback(userSel);
 			}
 
 		};
