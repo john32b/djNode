@@ -76,7 +76,7 @@ abstract Color(String) from String to String
 	var magenta = "magenta"; var darkmagenta = "darkmagenta";	
 }//---------------------------------------------------;
 
-
+@:dce
 class Terminal
 {
 	

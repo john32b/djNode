@@ -25,11 +25,11 @@ import js.node.stream.Writable;
 class CLIApp
 {
 	// The process
-	public var proc:js.node.child_process.ChildProcess;
+	public var proc(default, null):js.node.child_process.ChildProcess;
 	
 	// Keep the FULL path of the executable (e.g. "c:\bin\ffmpeg.exe")
 	// This is what will be executed
-	var exePath:String;
+	public var exePath(default, null):String;
 	
 	// #USERSET
 	// Set before starting the process
@@ -52,6 +52,13 @@ class CLIApp
 	
 	/** Called when program exits. (success) */
 	public var onClose:Bool->Void;
+	
+	/** Some programs output on STDERR, (ffmpeg)
+	 *  If true, will read from that in case of Error */
+	public var FLAG_ERRORS_ON_STDERR:Bool = false;
+	
+	// For debugging purposes, store the last start() comman
+	public var log_last_call(default, null):String;
 	//---------------------------------------------------;
 
 	/**
@@ -73,7 +80,9 @@ class CLIApp
 	{
 		if (args == null) args = [];
 		
-		LOG.log('RUN: $exePath ' + args.join(' '));
+		log_last_call = '$exePath ' + args.join(' ');
+		
+		LOG.log('RUN: ' + log_last_call);
 		
 		// HELP:
 		// https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options
@@ -101,9 +110,10 @@ class CLIApp
 			// NOTE: Do I really need to check for a Kill Signal
 			if (code != 0)
 			{
+				var r = FLAG_ERRORS_ON_STDERR?stdErrLog:stdOutLog;
 				// Compact output and log 40 last characters
-				var c = ~/(\s\s+|\n)/g.replace(stdOutLog, "");
-				ERROR = 'ExitCode:($code) , StdOut:' + c.substr(-40);
+				var c = ~/(\s\s+|\n)/g.replace(r, "");
+				ERROR = 'ExitCode:($code) , StdOut/Err:' + c.substr( -80);
 				LOG.log('Process `$exePath` End - [ ERROR ] - $ERROR', 3);
 				HTool.sCall(onClose,false);
 			}else{
@@ -131,7 +141,7 @@ class CLIApp
 		if (LOG_STDERR)
 		{
 			proc.stderr.setEncoding("utf8");
-			proc.stdout.on("data", (d)->stdErrLog += d);
+			proc.stderr.on("data", (d)->stdErrLog += d);
 		}
 		
 		if (LOG_STDOUT)
@@ -208,9 +218,9 @@ class CLIApp
 	}//---------------------------------------------------;
 	
 
-	public function exists():Bool
+	public function exists(p:String = ""):Bool
 	{
-		return CLIApp.checkRun(exePath);
+		return CLIApp.checkRun(exePath + " " + p);
 	}//---------------------------------------------------;		
 	
 	

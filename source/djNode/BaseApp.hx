@@ -30,6 +30,7 @@
  ========================================================*/
 package djNode;
 
+import haxe.CallStack;
 import js.Error;
 import js.Node;
 import js.node.Path;
@@ -65,7 +66,7 @@ class BaseApp
 	}
 	
 	// #USERSET
-	// Fill this object up, (check the typedef for more info)
+	// Fill this object up, (Check the typedef "AppArguments" for more info)
 	var ARGS:AppArguments = {
 		inputRule:"opt",
 		outputRule:"opt",	
@@ -120,17 +121,14 @@ class BaseApp
 		// User pressed CTRL+C
 		Node.process.once("SIGINT", function() { Sys.exit(1); } );
 		
-		// - Will never fire if you use "jstack" library
+		// JStack Library
+		// Use the JSTACK_NO_SHUTDOWN define to use custom handlers
 		Node.process.once("uncaughtException", function(err:Dynamic) 
 		{
-			LOG.log(" ** Uncaught Exception ** ", 4);
-			if (Std.is(err, Error))  {
-				LOG.log(err.stack, 4);
-				exitError(err.message);
-			}else {
-				LOG.log(err, 4);
-				exitError(err);
-			}
+			var e:String = " ** Uncaught Exception ** \n";
+			if (Std.is(err, Error)) e += err.message; else e += cast err;
+			LOG.log(e, 4);
+			exitError(e);
 		});
 		
 		#end
@@ -548,15 +546,17 @@ typedef AppArguments =
 									// e.g. ["e","Extract","Extracts input file into output folder"] =>
 									//			node app.js e archive.zip -o c:\
 									//
-									// `Extensions` ("" for none)
+									// = `Extensions`
 									// - Will AutoAssociate an extension with an action, so if you
 									//   skip setting an action, it can be guessed by the input file
 									//   extension.
 									// - Separate multiple extensions with a comma (,)
 									// - Null (don't set) for no extensions
-									//
 									// - e.g. ["e","Extract","Extracts file", "zip,7z"] =>
 									//		node app.js input.zip 
+									// =
+									// - `ActionName` if starting with '-' will not show in help
+									//
 									
 	Options:Array<Array<String>>    // Holds Options in an array of arrays.
 									//
@@ -568,8 +568,9 @@ typedef AppArguments =
 									//      ["q","Quick","Quick operation mode",false] =>
 									//			node app.js -q
 									// `RequireValue`
-									// 	This option requires an additional parameter (just one)
-									//  Set any string for YES, e.g. "yes"
+									// 		This option requires an additional parameter (just one)
+									//  	Set any string for YES, e.g. "yes"
+									// `OptionName` ,  if starting with '-' will not show in help
 };
 
 

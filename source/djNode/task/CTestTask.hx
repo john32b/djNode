@@ -25,9 +25,9 @@ class CTestTask extends CTask
 	   @param	tick Report back progress every this many milliseconds
 	   @param	Name
 	**/
-	public function new(time:Int = 2000, Name:String = null, Desc:String = null, tick:Int = 200 )
+	public function new(time:Int = 2000, Info:String = null, tick:Int = 200 )
 	{
-		super(null, Name, Desc);
+		super(null, Info);
 
 		var timesToTick:Int = Math.ceil(time / tick);
 		var progressInc = Math.ceil(100.0 / timesToTick);

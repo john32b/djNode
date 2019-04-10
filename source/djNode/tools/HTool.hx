@@ -10,7 +10,7 @@ package djNode.tools;
 import haxe.macro.Expr;
 import haxe.macro.Context;
 
-
+@:dce
 class HTool
 {
 
@@ -55,7 +55,18 @@ class HTool
 	{
 		return ar[Std.random(ar.length)];
 	}//---------------------------------------------------;
-	
+		
+	/**
+	   Get filename and line of last thrown error
+	**/
+	public static function getExStackThrownInfo()
+	{
+		var str = "";
+		var a = haxe.CallStack.toString(haxe.CallStack.exceptionStack());
+		var r = ~/.*\/(.+) line (\d+)/;
+		if (r.match(a.split('\n')[1])) str = r.matched(1) + ":" + r.matched(2);
+		return str;
+	}//---------------------------------------------------;
 	
 	/**
 	   SafeCall

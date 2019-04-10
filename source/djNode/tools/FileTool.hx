@@ -1,6 +1,6 @@
  /**--------------------------------------------------------
  * FileTool
- * @author: johndimi, <johndimi@outlook.com> , @jondmt
+ * @author: johndimi, <johndimi@outlook.com>
  * --------------------------------------------------------
  * - Various Helpers for File and Path operations
  * 
@@ -14,26 +14,27 @@ import js.node.Crypto;
 import js.node.Fs;
 import js.node.fs.Stats;
 import js.node.Path;
+import js.node.fs.WriteStream;
 
-
+@:dce
 class FileTool
 {
-	
 	/**
 	   Recursively creates a directory structure
 	   <inPath> will be created if it does not exist
 	   e.g. createRecursiveDir("c:\\myfolder\\temp1\\temp2\\temp3");
 	   @param	inPath The path to be created
+	   @throws
 	**/
-	public static function createRecursiveDir(inPath:String):Void {
-		
+	public static function createRecursiveDir(inPath:String) 
+	{	
 		#if !js
 		throw "Not supported yet";
 		#end
 		
 		var paths:Array<String> = Path.normalize(inPath).split(Path.sep);
 		var cM = paths.length;
-		if (cM <= 0) throw "Path is empty!";
+		if (cM <= 0) throw 'Path `$inPath` is invalid';
 		var c = 0;
 		var p1 = "";	// Cummulative path for iterations 
 		// Check to see if the path is drive path (win32 only)
@@ -60,7 +61,9 @@ class FileTool
 	}//---------------------------------------------------;
 	
 	/**
-	* Remove directory recursively
+	* Remove directory recursively.
+	* + Deletes all files and subfolders
+	* @throws
 	*/
 	public static function deleteRecursiveDir(dir_path:String)
 	{
@@ -186,14 +189,80 @@ class FileTool
 		*/
 	}//---------------------------------------------------;
 
+	
+	/**
+	   Appends a part of a file into another file.
+	   @param	inputFile Source file
+	   @param	outputFile Target file (will be created if not exist)
+	   @param	readStart Byte position of the source file to start copying from
+	   @param	readLen Bytes in length to copy. 0 for rest of the file
+	   @param	callback (s:String) if not NULL, then ERROR
+	**/
+	public static function copyFilePart(
+				inputFile:String, outputFile:String, 
+				readStart:Int = 0, readLen:Int = 0, 
+				callback:String->Void):Void
+	{
+		var dest_stream:WriteStream;
+		var BUFFERSIZE:Int = 65536;
+		var inputSize:Int = 0;
+		
+		try{
+			inputSize = Std.int(Fs.statSync(inputFile).size);
+		}catch (e:Error){
+			return callback(e.message);
+		}
+		// - Autogen read len to the rest of the file
+		if (readLen == 0) {
+			readLen = inputSize - readStart;
+		} else if (readLen + readStart > inputSize) {
+			return callback('Trying to copy more bytes than the input file has.');
+		}
+		LOG.log('Copying `$inputFile` Bytes [$readStart [len]-> $readLen] to `$outputFile`');
+		// --
+		dest_stream = Fs.createWriteStream(outputFile, {
+			//flags:forceNewFile?FsOpenFlag.WriteCreate:FsOpenFlag.AppendCreate
+			flags:FsOpenFlag.AppendCreate
+		});
+		dest_stream.once("error", (err:Error)->{
+			callback('Cannot create/write to `$outputFile`');
+		});
+		// -
+		Fs.open(inputFile, FsOpenFlag.Read, function(err:Error, data:Int) {
+			if (err != null){
+				return callback('Could not open file `$inputFile`');
+			}
+			var buffer:Buffer;
+			var bytesCopied:Int = 0;
+			var bytesLeft:Int = readLen;
+			while (bytesLeft > 0) {
+				if (bytesLeft >= BUFFERSIZE) {
+					buffer = Buffer.allocUnsafe(BUFFERSIZE);
+					
+				}else{
+					buffer = Buffer.allocUnsafe(bytesLeft);
+				}
+				bytesCopied += Fs.readSync(data, buffer, 0, buffer.byteLength, readStart + bytesCopied);
+				bytesLeft -= buffer.byteLength;
+				dest_stream.write(buffer);
+			}
+			Fs.closeSync(data);
+			dest_stream.end();
+			dest_stream.once("close", ()->callback(null));
+		});
+	}//---------------------------------------------------;
+	
+	
+	
+	
 	/**
 	 * Returns the full path filename of every file in a folder
 	 * PRE: Folder Exists
 	 * @param inPath Get files from this folder only
 	 * @param fullPath If true the result Array will include the full path of each file. False for just the filenames
 	 */ 
-	public static function getFileListFromDir(inPath:String, fullPath:Bool = false):Array<String> {
-		
+	public static function getFileListFromDir(inPath:String, fullPath:Bool = false):Array<String> 
+	{
 		#if !js
 		throw "Not supported yet";
 		#end

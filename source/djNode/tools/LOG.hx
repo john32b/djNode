@@ -36,11 +36,12 @@ import js.node.Path;
 // -- Use the logging function on the debug builds only --
 
 typedef LogMessage = {
-	var pos:PosInfos;
-	var level:Int;
-	var log:String;
+	?pos:PosInfos,
+	level:Int,
+	log:String
 }//--
 
+@:dce
 class LOG 
 {
 	static var _isInited:Bool = false;	
@@ -136,16 +137,28 @@ class LOG
 	
 	/**
 	 * Logs a message to the logger
-	 * 
+	 * - No posInfos on Release
 	 * @param	text The message to log
 	 * @param	level 0:Debug, 1:Info, 2:Warn, 3:Error, 4:Fatal
 	 * @param	pos Autofilled by the compiler
 	 */
+	#if debug
 	public static function log(obj:Dynamic, level:Int = 1, ?pos:PosInfos)
+	#else
+	public static function log(obj:Dynamic, level:Int = 1, ?d:Dynamic)
+	#end
 	{
 		if (level < logLevel) return;
 		
-		var logmsg:LogMessage = { pos:pos, log:Std.string(obj), level:level };
+		var logmsg:LogMessage = {
+			#if debug 
+				pos:pos, 
+			#else
+				pos:null,
+			#end
+			
+			log:Std.string(obj), level:level 
+		};
 		
 		if (flag_keep_in_memory) {
 			// If the buffer is full, remove the oldest

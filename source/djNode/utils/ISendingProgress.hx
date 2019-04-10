@@ -1,4 +1,4 @@
-package;
+package djNode.utils;
 
 /**
  * Simple interface for things pushing progress/complete callbacks
@@ -8,5 +8,5 @@ interface ISendingProgress
 {
   	public var onComplete:Bool->Void;
 	public var onProgress:Int->Void;
-	public var ERROR:String;
+	public var ERROR(default, null):String;
 }

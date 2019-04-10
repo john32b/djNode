@@ -16,6 +16,7 @@ package djNode.tools;
 /** 
  * Singleton Global helper for various string operations
  */
+@:dce
 class StrTool
 {
 	// Can be externally set

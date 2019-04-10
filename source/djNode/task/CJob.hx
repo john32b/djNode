@@ -27,15 +27,12 @@
 					kill		:	The job has been force killed
 	
 		'taskStatus' : Called whenever a Task Status changes
-					<CJobStatus, CJob>
+					<CJobStatus, CTask>
 					start	:	The task has just started
 					progress:	The task progress has changed
 					complete:	The task has been completed
 					fail	:	The task has failed, see the ERROR field
 					
-		'complete'	 : Sends completion
-					<Bool, String> , Success , Error
-	
 	@note 
 	
 	 - Code copied over from C#, CDCRUSH project
@@ -45,23 +42,22 @@
 package djNode.task;
 
 import djNode.task.CTask;
+import djNode.tools.HTool;
 import djNode.tools.LOG;
 import haxe.CallStack;
 import js.Node;
 import js.node.Process;
 import js.node.events.EventEmitter;
-
 import js.Error;
 
 
-// CJOB statuses
 enum CJobStatus
 {
 	waiting;	// Job hasn't started yet
 	complete;	// Job is complete
+	allcomplete;// Job is complete and there are no more Jobs in the queue
 	start;		// Job has just started
 	fail;		// Job has failed
-	forceKill;	// Job has been force killed
 	progress;	// Job progress has been updated
 	taskStart;	// A New task has started
 	taskEnd;	// A task has ended
@@ -71,6 +67,14 @@ enum CJobStatus
 
 class CJob 
 {
+	
+	// -- GLOBAL HANDLERS
+	// If these are set, then every time a JOB starts will automatically
+	// attach new event handlers to these
+	public static var global_job_status:CJobStatus->CJob->Void;
+	public static var global_task_status:CTaskStatus->CTask->Void;
+	//---------------------------------------------------;
+	
 	// General Use Job name
 	public var name(default, null):String;
 
@@ -108,6 +112,9 @@ class CJob
 	// Holds all the tasks that are waiting to be executed
 	var taskQueue:Array<CTask>;
 
+	// Next job to run
+	var queueNext:CJob;
+	
 	// Pointers to the current working tasks
 	public var currentTasks(default, null):Array<CTask>;
 
@@ -115,11 +122,13 @@ class CJob
 	public var status(default, null):CJobStatus;
 	
 	// Job Events Object
+	// NOTE: events are called from within the Stack, so be careful
 	// "jobStatus"  : -> Whenever it changes
 	// "taskStatus" : -> Whenever it changes
 	public var events:IEventEmitter;
 	
 	// #USERSET
+	// NOTE: OnComplete gets called on a clean STACK
 	// Called whenever the Job Completes or Fails
 	// True : success, False : Error (read the ERROR field)
 	public var onComplete:Bool->Void = null;
@@ -212,11 +221,14 @@ class CJob
 		t.async = true; return addNext(t);
 	}//---------------------------------------------------;	
 	// Add a quicktask. Same as add(new CTask(...));
-	public function addQ(fn:CTask->Void,?n:String,?d:String):CJob
+	public function addQ(?n:String,fn:CTask->Void):CJob
 	{
-		return add(new CTask(fn, n, d));
+		return add(new CTask(fn, n));
 	}//---------------------------------------------------;
-	
+	public function addQA(?n:String, fn:CTask->Void):CJob
+	{
+		return addAsync(new CTask(fn, n));
+	}//---------------------------------------------------;
 	
 	// # USER CODE
 	// Override this and put initialization code
@@ -228,11 +240,23 @@ class CJob
 	// Starts the JOB
 	// THIS IS ASYNC and will return execution to the caller right away'
 	// Use the onStatus and onComplete callbacks to get updates
-	public function start()
+	public function start():CJob
 	{
 		if (status != CJobStatus.waiting) {
 			throw "A CJob object can only run once";
 		}
+		
+		if (global_job_status != null){
+			events.on('jobStatus', global_job_status);
+		}
+		if (global_task_status != null){
+			events.on('taskStatus', global_task_status);
+		}
+		
+		// + Send start signal before init();
+		LOG.log('JOB START : $name');
+		status = CJobStatus.start;
+		events.emit("jobStatus", status, this);
 		
 		try{
 			init();
@@ -256,11 +280,9 @@ class CJob
 		slots_active = [for (i in 0...MAX_CONCURRENT) false];
 		slots_progress = [for (i in 0...MAX_CONCURRENT) -1];
 		
-		LOG.log('Starting Job `$name`');
-		
-		status = CJobStatus.start;
-		events.emit("jobStatus", status, this);
 		feedQueue();
+		
+		return this;
 	}//---------------------------------------------------;
 	
 	
@@ -291,11 +313,19 @@ class CJob
 			if (TASKS_COMPLETE == TASKS_TOTAL)
 			{
 				// Job Complete
-				LOG.log('Job Complete : `$name`');
+				LOG.log('JOB COMPLETE : $name');
 				status = CJobStatus.complete;
 				events.emit("jobStatus", status, this);
+				if (queueNext == null) {
+					events.emit("jobStatus", CJobStatus.allcomplete, this);
+				}
 				kill();
-				if (onComplete != null) onComplete(true);
+				Node.process.nextTick(()->{
+					HTool.sCall(onComplete, true);
+					if (queueNext != null) {
+						queueNext.start();
+					}	
+				});
 			}
 		}
 		
@@ -324,7 +354,7 @@ class CJob
 		t.SLOT = fr;
 		TASKS_RUNNING ++;
 		
-		LOG.log('Task Start | ${t} | Remaining:${taskQueue.length} | Running:${currentTasks.length}');
+		LOG.log('Task Start : ${t} | JOB:[$name] , Remaining (${taskQueue.length}), Running (${currentTasks.length})');
 
 		try{
 			t.start();
@@ -368,7 +398,7 @@ class CJob
 		switch(s)
 		{
 			case CTaskStatus.complete:
-				LOG.log('Task Completed ' + t.toString());
+				LOG.log('Task Complete : ' + t.toString());
 				taskData = t.dataSend;
 				TASKS_COMPLETE++;
 				if (!t.FLAG_PROGRESS_DISABLE) TASKS_P_COMPLETE ++;
@@ -389,7 +419,7 @@ class CJob
 				events.emit("jobStatus", CJobStatus.progress, this);
 			// --
 			case CTaskStatus.fail:
-				LOG.log('ERROR: Task Failed ' + t.toString());
+				LOG.log('Task Fail : $t', 3);
 				killTask(t);
 				fail(t.ERROR);
 				
@@ -404,17 +434,21 @@ class CJob
 	}//---------------------------------------------------;
 	
 	// Force fail the JOB and cancel all remaining tasks, or this is called when a Task Fails
-	function fail(msg:String = "")
+	function fail(msg:String = ""):CJob
 	{
 		ERROR = msg;
-		LOG.log('Job Failed :' + name);
-		LOG.log('           :' + ERROR);
-		
+		LOG.log('JOB FAIL : $name');
+		LOG.log('         : ' + ERROR);
 		status = CJobStatus.fail;
 		events.emit("jobStatus", status, this);
-		
 		kill();
-		if (onComplete != null) onComplete(false);
+		
+		// This could be still on a Task Stack
+		Node.process.nextTick(()->{
+			HTool.sCall(onComplete, false);
+		});
+		
+		return this;
 	}//---------------------------------------------------;
 	
 	// Cleanup code, called on FAIL and COMPLETE
@@ -431,28 +465,16 @@ class CJob
 		// Clear any waiting task (just in case)
 		for (i in taskQueue) i.kill();
 		
-		LOG.log("Job Killed - " + name);
-	}//---------------------------------------------------;
-	
-	public function forceKill()
-	{
-		if (IS_KILLED) return;
-		if (status == CJobStatus.start) {
-			events.emit("jobStatus", CJobStatus.forceKill, this);
-		}
-		kill();
+		LOG.log('JOB KILLED : $name');
 	}//---------------------------------------------------;
 	
 	/**
-	   Get filename and line of thrown
+	   Queue a Job to run when this one completes successfully
 	**/
-	public static function getExStackThrownInfo()
+	public function then(j:CJob):CJob
 	{
-		var str = "";
-		var a = CallStack.toString(CallStack.exceptionStack());
-		var r = ~/.*\/(.+) line (\d+)/;
-		if (r.match(a.split('\n')[1])) str = r.matched(1) + ":" + r.matched(2);
-		return str;
+		queueNext = j;
+		return j;
 	}//---------------------------------------------------;
 	
 }// --
