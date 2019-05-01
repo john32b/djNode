@@ -20,7 +20,7 @@ class TestJobReport extends TestTemplate
 			expect("There is a single bar displaying progress for all tasks.");
 			
 			var j = new CJob("Test synoptic progress report");
-				j.onComplete = function(a){doNext(); };
+				j.onComplete = doNext;
 				j.add(new CTestTask(300, 'Initializing'));
 				// Starting with - will not report progress
 				j.add(new CTestTask(500, '-No Progress Report').addMore(3, 400));
@@ -39,7 +39,7 @@ class TestJobReport extends TestTemplate
 			expect("Custom user info at beggining and end");
 	
 			var j = new CJob("Testing multiple progress report");
-				j.onComplete = function(a){doNext(); };
+				j.onComplete = doNext;
 				j.MAX_CONCURRENT = 3;
 				j.addAsync(new CTestTask(1200,'Compressing File 1'));
 				j.addAsync(new CTestTask(2200,'Compressing File 2'));
@@ -51,7 +51,7 @@ class TestJobReport extends TestTemplate
 			report.onStart = function(j){
 				T.println("Custom user code, onStart()");
 			}
-			report.onComplete = function(j,s){
+			report.onComplete = function(j){
 				T.println("Custom use code, onComplete()");
 			}
 			j.start();

@@ -6,7 +6,6 @@
 -main main
 -js bin/app.js
 -D terminal
--dce full
 
 # note -cmd dos command
 # e.g.

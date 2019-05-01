@@ -27,7 +27,7 @@ class CTestTask extends CTask
 	**/
 	public function new(time:Int = 2000, Info:String = null, tick:Int = 200 )
 	{
-		super(null, Info);
+		super(Info);
 
 		var timesToTick:Int = Math.ceil(time / tick);
 		var progressInc = Math.ceil(100.0 / timesToTick);

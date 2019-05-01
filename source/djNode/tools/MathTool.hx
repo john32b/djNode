@@ -5,7 +5,7 @@ package djNode.tools;
  * ...
  * @singleton
  */
-
+@:dce
 class MathTool
 {
 	/**

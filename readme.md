@@ -1,23 +1,20 @@
+# djNode (haxe library)
 
-# djNode library for HAXE
-
-**Version:** 0.2\
-**Author:** John Dimi, <johndimi@outlook.com>, twitter:[@jondmt](https://twitter.com/jondmt)\
-**Language:** Haxe 3.x\
-**Requires:** hxnodejs\
-**Compiles to:** nodeJs code\
+**Version:** 0.3  
+**Author:** John Dimi :computer:, <johndimi@outlook (.) com> *twitter*: [@jondmt](https://twitter.com/jondmt)  
+**Project Page and Sources:** [https://github.com/johndimi/djNode](https://github.com/johndimi/djNode)  **Language:** Haxe 4.0  
+**Requires:** hxnodejs , **Compiles to:** nodeJs code  
 **Platform:** Windows & Linux
 
-__djNode__ is a set of tools and helpers for creating **nodeJS CLI** applications fast and easily. 
-
-----------
+**djNode** is a set of tools and helpers for creating **nodeJS CLI** applications fast and easily.
 
 ### Features
-- Terminal Print Helper class, that supports coloring, text formatting, cursor manipulation and more.
-- Advanced input arguments handling with automatic safeguards and easy retrieval of argument options/actions.
-- Automatic handling of multiple Tasks that can run in **sync** or **async**. Progress reports and chaining.
-- Easy external CLI application spawner with builyt in helpers to read stdout/stderr
-- Simple LOG system that can output to a file or http using sockets (**in development**)
+- Terminal **Print Helper** class, that supports coloring, text formatting, cursor manipulation and more.
+- Advanced **input arguments handling** with automatic safeguards and easy retrieval of argument options/actions.
+- Automatic handling of multiple **Tasks** that can run in **sync** or **async**. Progress reports and chaining.
+- Easy external **CLI application spawner** with built in helpers to read stdout/stderr
+- Simple **LOG system** that can output to a file or http using sockets (**in development**)
+- Some useful **String** and **File** related helper functions
 - More to come
 
 
@@ -31,7 +28,7 @@ __djNode__ is a set of tools and helpers for creating **nodeJS CLI** application
 Included in the source is a **test** project that showcases and tests the various components. 
 
 #### Terminal.hx
-Contains basic functions for printing and moving the cursor. \
+Contains basic functions for printing and moving the cursor.  
 :star2: **Feature** : Inline tagging system to quickly inject color codes, used in `sprintf` and `printf` functions.
 
 *Example 1:*
@@ -44,13 +41,15 @@ T.printf('~yellow~Quick and easy~green~ Multicolored~red~ Strings~!~\n');
 ![Terminal Demo](images/example_test_001.png)
 
 #### `CTask.hx`
-An object that holds user code. It reports progress and status updates to a manager object `CJob`. Tasks can run in **sync** or **async**. The manager is responsible for queuing and executing tasks.\
+An object that holds user code. It reports progress and status updates to a manager object `CJob`. Tasks can run in **sync** or **async**. The manager is responsible for queuing and executing tasks.  
 SYNC tasks can only run by themselves. ASYNC tasks can only run with other Async tasks or on their own. Depending on the task queue.
+
 > Create `CTasks` and add them to a `CJob` manager
 
 #### `CJob.hx`
-An object handling `CTask` objects. It will report status and progress with callbacks on complete, fail, progress updated.\
+An object handling `CTask` objects. It will report status and progress with callbacks on complete, fail, progress updated.  
 **example**
+
 ```haxe
 var j = new CJob("Job Name");
 
@@ -76,11 +75,11 @@ var j = new CJob("Job Name");
 	j.start(); 
 ```
 
-*Screen from the Job Demo, shows tasks running in sequence: *
+*Screen from the Job Demo, shows tasks running in sequence:*
 ![Tasks running Test](images/example_test_003.gif)
 
 #### `CJobReport.hx`
-Listens to a `CJob` status updates and write progress to the terminal.\
+Listens to a `CJob` status updates and write progress to the terminal.  
 **Features** : Can also show individual track progress, (*Check the test project*)
 
 *Synoptic Job report*\
@@ -91,7 +90,7 @@ Listens to a `CJob` status updates and write progress to the terminal.\
 
 
 ### `BaseApp.hx`
-It's the what main entry class of the program should extend.\
+It's the what main entry class of the program should extend.  
 You can declare what kind of actions, options, inputs and outputs the program expects and will read and parse those arguments based on the rules you set. Also it will create usage info based on all the rules and expected actions.options.
 
 *e.g.* You can require your program to expect an input file, or expect an option with a parameter, etc. The program will  produce informative error messages when a rule is not satisfied
@@ -137,7 +136,6 @@ class Main extends BaseApp {
 
 ### Infos
 
-Mostly personal library that I use in some tools of mine. [CDCRUSH nodejs](https://www.npmjs.com/package/cdcrush) version uses this.
-
+Mostly personal library that I use in some tools of mine. [CDCRUSH nodejs](https://www.npmjs.com/package/cdcrush) version uses this.  
 :warning: **WARNING** In case the Windows Default Command Line doesn't work use another console emulator like [cmder](http://cmder.net/) (*recommended*)
 

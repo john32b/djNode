@@ -115,11 +115,11 @@ class BaseApp
 		// Normal Exit, code 0 is OK, other is Error
 		Node.process.once("exit", function(code) {
 			LOG.log("==> [EXIT] with code " + code);
-			onExit();
+			onExit(cast code);
 		});
 		
 		// User pressed CTRL+C
-		Node.process.once("SIGINT", function() { Sys.exit(1); } );
+		Node.process.once("SIGINT", function() { Sys.exit(1223); } );
 		
 		// JStack Library
 		// Use the JSTACK_NO_SHUTDOWN define to use custom handlers
@@ -149,7 +149,7 @@ class BaseApp
 		LOG.log('- Action  set : ' + argsAction);
 		LOG.log('- Options set : ');
 		for (o in Reflect.fields(argsOptions)) {
-		LOG.log('\t\t' + o + ' : ' + Reflect.getProperty(argsOptions, o));
+			LOG.log('\t\t' + o + ' : ' + Reflect.getProperty(argsOptions, o));
 		}
 		LOG.log('-------------');
 		
@@ -278,9 +278,8 @@ class BaseApp
 		// - Make options not set to fields with `false` for quick look up
 		for (o in ARGS.Options) {
 			if (o[3] == null) { // Option not expecting argument
-				var id = o[0].substr(1);
-				if (!Reflect.hasField(argsOptions, id)) {
-					Reflect.setField(argsOptions, id, false);
+				if (!Reflect.hasField(argsOptions, o[0])) {
+					Reflect.setField(argsOptions, o[0], false);
 				}
 			}
 		}
@@ -294,9 +293,13 @@ class BaseApp
 	
 	/**
 	  Called whenever the program exists, normally or with errors
-	  You can override to clean up wh
+	  You can override to clean up things
+	  # Common Codes:
+		- 0 		: The operation completed successfully.
+		- 1 		: Incorrect function ( generic error )
+		- 1223 		: User Cancel
 	**/
-	function onExit()
+	function onExit(code:Int)
 	{
 		LOG.end();
 		T.reset();

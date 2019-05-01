@@ -99,5 +99,11 @@ class HTool
 		return macro { if ($cb != null) haxe.Timer.delay(()->$e, 1); };
 	}//---------------------------------------------------;
 	
+	macro public static function inRange(cb:Expr, a:Int, b:Int)
+	{
+		return macro {
+			if ($cb < $v{a}) $cb = $v{a} else if ($cb > $v{b}) $cb = $v{b};
+		};
+	}//---------------------------------------------------;
 	
 }// --

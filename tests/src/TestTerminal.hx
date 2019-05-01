@@ -14,7 +14,7 @@ class TestTerminal extends TestTemplate
 	public function new(?compl:Void->Void) 
 	{
 		super("TERMINAL.hx");
-		
+
 		onComplete = compl;
 		
 		// --

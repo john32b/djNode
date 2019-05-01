@@ -22,6 +22,7 @@
  *  			http://misc.flogisoft.com/bash/tip_colors_and_formatting
  * 				http://pueblo.sourceforge.net/doc/manual/ansi_color_codes.html
  * 				https://en.wikipedia.org/wiki/ANSI_escape_code  <--
+ * 				https://docs.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences <<-- Windows
  *
  * 
  * 	Cursor Position :
@@ -183,17 +184,14 @@ class Terminal
 		var distanceBetweenColumns = 15;
 		println("Available Colors").drawLine();
 		
-		savePos();
-		
 		//-- Draw the foreground colors
 		for (i in AVAIL_COLORS) {
 			if (i == Color.black) bg(Color.gray); else bg(Color.black);
 			fg(i).print(i).endl().resetFg();
 		}
 		
-		reset();
-		restorePos();
-		
+		moveR(0, -AVAIL_COLORS.length);
+	
 		//-- Draw the background colors:
 		for (i in AVAIL_COLORS) {
 			forward(distanceBetweenColumns);
@@ -383,6 +381,9 @@ class Terminal
 	/**
 	 * Stores the position of the cursor, for later use
 	 * with restorePos()
+	 * BUG: On Windows CMD, SAVE/RESTORE, does not consider scrolling,
+	 * 		meaning, it will restore to the save exact (x,y) of terminal space
+	 * 		-Use with caution-, best used on single lines
 	 */
 	public inline function savePos():Terminal
 	{
@@ -392,6 +393,9 @@ class Terminal
 	/**
 	 * Restores the cursor to the position it was stored
 	 * by savePos()
+	 * BUG: On Windows CMD, SAVE/RESTORE, does not consider scrolling,
+	 * 		meaning, it will restore to the save exact (x,y) of terminal space
+	 * 		-Use with caution-, best used on single lines
 	 */
 	public inline function restorePos():Terminal
 	{
@@ -402,9 +406,11 @@ class Terminal
 	 * Scrolls the Terminal down, it doesn't erase anything.
 	 * -- it just scrolls down to window height --
 	 */
-	public function pageDown():Terminal
+	public function pageDown(h:Int = 0):Terminal
 	{
-		return savePos().print(StringTools.lpad("", "\n", getHeight() + 1)).restorePos();
+		if (h == 0) h = getHeight();
+		print(StringTools.lpad("", "\n", h));
+		return moveR(0, -h);
 	}//---------------------------------------------------;
 
 	/**

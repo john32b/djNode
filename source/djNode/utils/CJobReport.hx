@@ -32,6 +32,7 @@ import djNode.BaseApp;
 import djNode.Terminal;
 import djNode.task.CJob;
 import djNode.task.CTask;
+import djNode.tools.HTool;
 import js.Node;
 
 class CJobReport 
@@ -41,7 +42,7 @@ class CJobReport
 	// are reporting progress at once. Limit to this time minimum.
 	public static var UPDATE_MIN_TIME:Float = 0.16;
 	// Bullets/Identifiers before writing job or task progress
-	public static var PREFIX_HED = '~green~ +~!fg~ ';
+	public static var PREFIX_HED = '~yellow~>>~!fg~ ';
 	public static var PREFIX_ONE = '~cyan~==~!fg~ ';
 	public static var PREFIX_TWO = '~cyan~ >~!fg~ ';
 	public static var PROGRESS_BAR_LEN = 32;
@@ -57,7 +58,7 @@ class CJobReport
 	var flag_multiple_progress:Bool;
 	
 	// Print predefined Headers and Footers
-	var flag_pre_post_infos:Bool;
+	var flag_print_header:Bool;
 	
 	// Time the main progress was last updated
 	var timeLastProgUpdate:Float;
@@ -68,27 +69,46 @@ class CJobReport
 	// How much to the right since progress printed
 	var jobCursorJump:Int;
 	
+	var headerLen:Int = 0;
+	
+	/**
+	 * User code for before starting
+	 * - For printing more specific details
+	 */
+	public var onStart:CJob->Void;
+	
+	/** 
+	 * User code for after ending
+	 * - For printing more specific details
+	 */
+	public var onComplete:CJob->Void;
+	
+	/** Print Error/Fail Details */
+	public var FLAG_ERROR_DETAIL:Bool = true;
+	
 	/**
 	   
 	   @param	j the job to report progress from
 	   @param	MULTIPLE_PROGRESS True to display individual task progress
-	   @param	PRINT_PRE_POST	  True to display JobName/Desc at the top and Completion Messages
+	   @param	PRINT_HEADER	  True to display JobName/Desc at the top and Completion Messages
 	**/
-	public function new(j:CJob, MULTIPLE_PROGRESS:Bool = false, PRINT_PRE_POST:Bool = false)
+	public function new(?j:CJob, MULTIPLE_PROGRESS:Bool = false, PRINT_HEADER:Bool = true)
 	{
 		T = BaseApp.TERMINAL;
+		
+		flag_multiple_progress = MULTIPLE_PROGRESS;
+		flag_print_header = PRINT_HEADER;
+		
+		slotCursorJump = [];
+		
 		job = j;
 		j.events.on("jobStatus", onJobStatus);
-		flag_multiple_progress = MULTIPLE_PROGRESS;
-		flag_pre_post_infos = PRINT_PRE_POST;
 		
 		if (j.MAX_CONCURRENT == 1 && flag_multiple_progress)
 		{
 			// No need if the job can only do 1 job at a time
 			flag_multiple_progress = false;
 		}
-		
-		slotCursorJump = [];
 		
 		// In case the job is running, call the initializer now.
 		if (j.status != CJobStatus.waiting)
@@ -97,14 +117,6 @@ class CJobReport
 		}
 	}//---------------------------------------------------;
 	
-	// User code for before starting
-	// Useful to printing more specific details
-	dynamic public function onStart(j:CJob) {}
-	
-	// User code for after ending
-	// Useful to printing more specific details
-	dynamic public function onComplete(j:CJob, success:Bool) {}
-	
 	// -
 	function onJobStatus(status:CJobStatus, j:CJob)
 	{
@@ -112,29 +124,42 @@ class CJobReport
 		{
 			default:
 				
-			case CJobStatus.start:
+			case CJobStatus.init:
 				
-				if (flag_pre_post_infos)
+				if (flag_print_header)
 				{
 					T.reset();
-					T.printf(PREFIX_HED + j.name).endl();
+					T.cursorHide();
+					// THIS HACK is to fix the Windows CMD BUG
+					// Make sure there is enough space on the screen 
+					// else save/restore cursor will not work
+					T.pageDown(job.MAX_CONCURRENT + 2);
+					
+					if (j.info != null)
+					{
+						var inf = j.info;
+						headerLen = j.info.length;
+						inf = ~/\[/.replace(inf, "~yellow~");
+						inf = ~/\]/.replace(inf, "~!fg~");
+						T.printf(PREFIX_HED + inf).endl();
+					}else{
+						headerLen = j.sid.length;
+						T.printf(PREFIX_HED + j.sid).endl();
+					}
+					
 				}
-				onStart(j); // User code or nothing
-				timeLastProgUpdate = 0;
-				T.cursorHide();
+				
 				T.savePos();
+				HTool.sCall(onStart, j);
+				timeLastProgUpdate = 0;
+				
 				printSynopticInit();
-								
 
 			case CJobStatus.complete:
 				doCompleteJob(true);
 
 			case CJobStatus.fail:
 				doCompleteJob(false);
-				
-			case CJobStatus.forceKill:
-				doCompleteJob(false, true);	// User Exit ?
-				
 				
 			case CJobStatus.progress:
 				
@@ -157,7 +182,7 @@ class CJobReport
 				
 				var t = j.TASK_LAST;
 				if (t.FLAG_PROGRESS_DISABLE) return;
-				var strname:String = (t.desc == null) ? t.name : t.desc;
+				var strname:String = t.info;
 					
 				if (flag_multiple_progress)
 				{
@@ -191,8 +216,7 @@ class CJobReport
 	// JOB Progress Formatting
 	function printSynopticInit()
 	{
-		T.endl().endl(); // Reserve two lines just in case
-		T.up(2);
+		T.pageDown(2);
 		T.printf(PREFIX_ONE + 'Tasks Completed :\n');
 		T.printf(PREFIX_ONE + 'Total Progress  :\n');
 		jobCursorJump = 21; // manual number
@@ -245,22 +269,29 @@ class CJobReport
 		
 	
 	// Print ending info and reset cursors etc
-	function doCompleteJob(success:Bool,aborted:Bool = false)
+	function doCompleteJob(success:Bool)
 	{
-		T.cursorShow();
 		T.restorePos();
+		T.cursorShow();
+		T.up(0).forward(headerLen + 1);
 		T.clearScreen(0);
 		
-		if (flag_pre_post_infos)
+		if (flag_print_header)
 		{
-			if(success)
-				T.fg('green').println(" Complete");
-			else
-				T.fg('red').println(aborted?" Aborted":" Failed");
+			T.print(' : ');
+			if (success){
+				T.fg('green').println("[Complete]").resetFg();
+				HTool.sCall(onComplete, job);
+			}
+			else{
+				T.fg('red').print("[Failed] ");
+				if (FLAG_ERROR_DETAIL) {
+					T.fg("darkgray");
+					T.print(job.ERROR);
+				}
+				T.resetFg().endl();
+			}
 		}
-		
-		T.resetFg();
-		onComplete(job, success);
 	}//---------------------------------------------------;
 	
 }// --

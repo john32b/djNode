@@ -19,8 +19,7 @@ class TestTemplate
 	public function new(title:String) 
 	{
 		T = BaseApp.TERMINAL;
-		
-		T.pageDown();
+//		T.pageDown();
 		T.endl().drawLine().H2(title + "- Tests:");
 	}//---------------------------------------------------;
 	

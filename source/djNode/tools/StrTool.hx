@@ -1,13 +1,10 @@
 /**--------------------------------------------------------
  * StrTool.hx
- * @author: johndimi, <johndimi@outlook.com> , @jondmt
+ * @author: johndimi, <johndimi@outlook.com>
  * --------------------------------------------------------
  * @Description
  * -------
  * General purpose StringTools
- * 
- * @Notes
- * ------
  * 
  ========================================================*/
 
@@ -41,7 +38,7 @@ class StrTool
 	 * @param	bytes Number of bytes to convert
 	 * @return  The converted bytes to string format.
 	 */
-	public static function bytesToMBStr(bytes:Int):String {
+	public static function bytesToMBStr(bytes:Float):String {
 		return Std.string( Math.ceil( bytes / (1024 * 1024)));
 	}//---------------------------------------------------;
 	

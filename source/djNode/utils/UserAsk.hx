@@ -3,6 +3,7 @@ package djNode.utils;
 import djNode.BaseApp;
 import djNode.Keyboard;
 import djNode.Terminal;
+import djNode.tools.HTool;
 import djNode.tools.LOG;
 
 /**
@@ -59,7 +60,8 @@ class UserAsk
 				// If I tell it to print k, it will print the \n as well
 				t.fg(Color.green).print('$userSel').reset().endl();
 				Keyboard.stop();
-				callback(userSel);
+				//callback(userSel);
+				HTool.tCall(callback, userSel);
 			}
 
 		};

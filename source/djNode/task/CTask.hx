@@ -16,9 +16,8 @@
    
 package djNode.task;
 import djNode.tools.HTool;
+import djNode.tools.LOG;
 import djNode.utils.ISendingProgress;
-import haxe.CallStack;
-
 
 enum CTaskStatus
 {
@@ -87,7 +86,7 @@ class CTask
 	public var killExtra:Void->Void = null;
 	
 	// Pointer to the Job holding this task
-	var parent:CJob;
+	public var parent(default, null):CJob;
 	
 	// CJob sets this
 	// SYNC tasks run by themselves while no other task is running on the Job
@@ -120,14 +119,12 @@ class CTask
 	
 	// In case of error, READ THIS 
 	public var ERROR:String;
-	
 	//====================================================;
 	
 	// -
-	public function new(?qRun:CTask->Void, ?Info:String) 
+	public function new(?Info:String, ?qRun:CTask->Void) 
 	{
 		uid = ++UID;
-		//info = Info == null?"":Info;
 		info = Info;
 		quickRun = qRun;
 		
@@ -161,20 +158,17 @@ class CTask
 
 	// Can also be called from quickTasks
 	// --
-	public function fail(?message:String,?pos:haxe.PosInfos)
+	public function fail(?message:String, ?pos:haxe.PosInfos)
 	{
 		ERROR = message;
 		
+		#if debug
 		// Fail was manually called.
-		if (CallStack.exceptionStack().length == 0)
+		if (haxe.CallStack.exceptionStack().length == 0)
 		{
-			var p = pos.fileName.split('/').pop();
-			ERROR += ' @ ' + p + ':' + pos.lineNumber;
-		}else
-		{
-			// Throw Error -> Caught by CJOB-> call this.fail()
-			ERROR += ' @ ' + HTool.getExStackThrownInfo();
+			LOG.log("Fail called @ " +  pos.fileName.split('/').pop() + ':' + pos.lineNumber );	
 		}
+		#end
 		
 		status = CTaskStatus.fail;
 	}//---------------------------------------------------;

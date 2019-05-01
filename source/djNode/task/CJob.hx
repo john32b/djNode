@@ -44,19 +44,18 @@ package djNode.task;
 import djNode.task.CTask;
 import djNode.tools.HTool;
 import djNode.tools.LOG;
-import haxe.CallStack;
 import js.Node;
 import js.node.Process;
 import js.node.events.EventEmitter;
 import js.Error;
-
 
 enum CJobStatus
 {
 	waiting;	// Job hasn't started yet
 	complete;	// Job is complete
 	allcomplete;// Job is complete and there are no more Jobs in the queue
-	start;		// Job has just started
+	init;		// Job is about to init()
+	start;		// Job is about to start()
 	fail;		// Job has failed
 	progress;	// Job progress has been updated
 	taskStart;	// A New task has started
@@ -75,11 +74,11 @@ class CJob
 	public static var global_task_status:CTaskStatus->CTask->Void;
 	//---------------------------------------------------;
 	
-	// General Use Job name
-	public var name(default, null):String;
+	// General Use Job info
+	public var info:String;
 
 	// General Use String ID	
-	public var sid(default, null):String;
+	public var sid:String;
 	
 	// #USERSET
 	// How many parallel tasks to run at a time
@@ -123,15 +122,19 @@ class CJob
 	
 	// Job Events Object
 	// NOTE: events are called from within the Stack, so be careful
-	// "jobStatus"  : -> Whenever it changes
-	// "taskStatus" : -> Whenever it changes
+	// "jobStatus"  : -> (CJobStatus,CJob)->{} 
+	// "taskStatus" : -> (CTaskStatus,CTask)->{} Notifies for any containing tasks
 	public var events:IEventEmitter;
 	
 	// #USERSET
 	// NOTE: OnComplete gets called on a clean STACK
-	// Called whenever the Job Completes or Fails
-	// True : success, False : Error (read the ERROR field)
-	public var onComplete:Bool->Void = null;
+	// Called whenever the Job Completes
+	public var onComplete:Void->Void = null;
+	
+	// #USEREST
+	// NOTE: OnComplete gets called on a clean STACK
+	// Called whenever the Job FAILS
+	public var onFail:Void->Void = null;
 	
 	// If the job has failed, this holds the ERROR code, copied from task ERROR code
 	public var ERROR(default, null):String;
@@ -163,12 +166,12 @@ class CJob
 	
 	//====================================================;
 	
-	public function new(?Name:String,?TaskData:Dynamic) 
+	public function new(?Sid:String,?TaskData:Dynamic) 
 	{
 		taskQueue = [];
 		currentTasks = [];
 		taskData = TaskData;
-		name = Name == null?"Unnamed Job, " + Date.now().toString():Name;
+		sid = Sid == null?"Job:" + Date.now().toString():Sid;
 		status = CJobStatus.waiting;
 		TASKS_RUNNING = 0; TASKS_COMPLETE = 0; TASKS_TOTAL = 0; PROGRESS_TOTAL = 0;
 		TASKS_P_PRECALC = 0; TASKS_P_TOTAL = 0; TASKS_P_COMPLETE = 0; TASKS_P_RATIO = 0;
@@ -188,7 +191,7 @@ class CJob
 			
 			TASKS_P_RATIO = 1 / TASKS_P_TOTAL; 
 			
-			if (status != CJobStatus.waiting) // The Job is currently running
+			if (status == CJobStatus.start) // The Job is currently running
 			{
 				// recalculate past tasks
 				TASKS_P_PRECALC = TASKS_P_RATIO * 100 * TASKS_P_COMPLETE;
@@ -221,13 +224,13 @@ class CJob
 		t.async = true; return addNext(t);
 	}//---------------------------------------------------;	
 	// Add a quicktask. Same as add(new CTask(...));
-	public function addQ(?n:String,fn:CTask->Void):CJob
+	public function addQ(?n:String, fn:CTask->Void):CJob
 	{
-		return add(new CTask(fn, n));
+		return add(new CTask(n, fn));
 	}//---------------------------------------------------;
 	public function addQA(?n:String, fn:CTask->Void):CJob
 	{
-		return addAsync(new CTask(fn, n));
+		return addAsync(new CTask(n, fn));
 	}//---------------------------------------------------;
 	
 	// # USER CODE
@@ -254,8 +257,8 @@ class CJob
 		}
 		
 		// + Send start signal before init();
-		LOG.log('JOB START : $name');
-		status = CJobStatus.start;
+		LOG.log('JOB INIT : $this');
+		status = CJobStatus.init;
 		events.emit("jobStatus", status, this);
 		
 		try{
@@ -279,6 +282,11 @@ class CJob
 		// Fill in the slot array 
 		slots_active = [for (i in 0...MAX_CONCURRENT) false];
 		slots_progress = [for (i in 0...MAX_CONCURRENT) -1];
+		
+		// + Send start signal before init();
+		LOG.log('JOB START : $this');
+		status = CJobStatus.start;
+		events.emit("jobStatus", status, this);
 		
 		feedQueue();
 		
@@ -313,7 +321,7 @@ class CJob
 			if (TASKS_COMPLETE == TASKS_TOTAL)
 			{
 				// Job Complete
-				LOG.log('JOB COMPLETE : $name');
+				LOG.log('JOB COMPLETE : $this');
 				status = CJobStatus.complete;
 				events.emit("jobStatus", status, this);
 				if (queueNext == null) {
@@ -321,7 +329,7 @@ class CJob
 				}
 				kill();
 				Node.process.nextTick(()->{
-					HTool.sCall(onComplete, true);
+					HTool.sCall(onComplete);
 					if (queueNext != null) {
 						queueNext.start();
 					}	
@@ -354,7 +362,7 @@ class CJob
 		t.SLOT = fr;
 		TASKS_RUNNING ++;
 		
-		LOG.log('Task Start : ${t} | JOB:[$name] , Remaining (${taskQueue.length}), Running (${currentTasks.length})');
+		LOG.log('Task Start : ${t} | $this | Remaining (${taskQueue.length}), Running (${currentTasks.length})');
 
 		try{
 			t.start();
@@ -437,15 +445,17 @@ class CJob
 	function fail(msg:String = ""):CJob
 	{
 		ERROR = msg;
-		LOG.log('JOB FAIL : $name');
-		LOG.log('         : ' + ERROR);
+		LOG.log('JOB FAIL : $this');
+		LOG.log('         : ' + ERROR + "@" + HTool.getExStackThrownInfo());
+		
 		status = CJobStatus.fail;
 		events.emit("jobStatus", status, this);
+		
 		kill();
 		
 		// This could be still on a Task Stack
 		Node.process.nextTick(()->{
-			HTool.sCall(onComplete, false);
+			HTool.sCall(onFail);
 		});
 		
 		return this;
@@ -453,7 +463,7 @@ class CJob
 	
 	// Cleanup code, called on FAIL and COMPLETE
 	// Also Can be called from user on program force exit to do cleanups
-	function kill()
+	public function kill()
 	{
 		if (IS_KILLED) return; IS_KILLED = true;
 		
@@ -465,7 +475,13 @@ class CJob
 		// Clear any waiting task (just in case)
 		for (i in taskQueue) i.kill();
 		
-		LOG.log('JOB KILLED : $name');
+		LOG.log('JOB KILLED : $this');
+	}//---------------------------------------------------;
+	
+	
+	public function toString():String
+	{
+		return 'JOB [$sid] ' + (info != null?info:'');
 	}//---------------------------------------------------;
 	
 	/**

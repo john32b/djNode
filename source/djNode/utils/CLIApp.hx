@@ -5,6 +5,7 @@
  * . Spawns CLI applications
  * . Reports Realtime StdOut and StdErr
  * . Static functions for quickly calling/checking
+ * . Must be used for one operation at a time, for parallel same apps use multiple objects
  *
  * @supports : nodeJS
  * 
@@ -18,7 +19,6 @@ import js.Error;
 import js.Node;
 import js.node.ChildProcess;
 import js.node.Path;
-import js.node.Process;
 import js.node.stream.Writable;
 
 
@@ -95,10 +95,10 @@ class CLIApp
 		 * - Sending a message to the child process failed.
 		 */
 		proc.once("error", function(er:Error){
+			kill();	// Destroy other listeners that may fire upon other exit events
 			ERROR = "Exit Error : " + er.message;
 			LOG.log('Process `$exePath` [ ERROR ] - $ERROR', 3);
 			HTool.sCall(onClose,false);
-			kill();	// Destroy other listeners that may fire upon other exit events
 		});
 		
 		/*
@@ -108,6 +108,7 @@ class CLIApp
 		 */
 		proc.once("close", function(code:Int, killsig:String) {
 			// NOTE: Do I really need to check for a Kill Signal
+			kill();	// Destroy other listeners that may fire upon other exit events
 			if (code != 0)
 			{
 				var r = FLAG_ERRORS_ON_STDERR?stdErrLog:stdOutLog;
@@ -120,7 +121,6 @@ class CLIApp
 				LOG.log('Process `$exePath` End - [ OK ]');
 				HTool.sCall(onClose, true);
 			}
-			kill();	// Destroy other listeners that may fire upon other exit events
 		});
 		
 		stdOutLog = "";
