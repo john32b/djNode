@@ -164,6 +164,9 @@ class CJob
 	// Percentage of tasks completed
 	public var PROGRESS_TOTAL(default, null):Float;
 	
+	
+	// Task Generator
+	var taskgen:Void->CTask = null;	
 	//====================================================;
 	
 	public function new(?Sid:String,?TaskData:Dynamic) 
@@ -177,6 +180,21 @@ class CJob
 		TASKS_P_PRECALC = 0; TASKS_P_TOTAL = 0; TASKS_P_COMPLETE = 0; TASKS_P_RATIO = 0;
 		events = new EventEmitter();
 	}//---------------------------------------------------;
+	
+	
+	/**
+	   Adds a Task Generator to the top of the QUEUE
+	**/
+	public function addTaskGen(fn:Void->CTask):CJob
+	{		
+		var t = new CTask("Generator Start", (t)->{
+			taskgen = fn;
+			t.complete();
+		});
+		
+		return add(t);
+	}//---------------------------------------------------;
+
 	
 	/**
 	 * Task initialization after adding in to the queue
@@ -294,14 +312,37 @@ class CJob
 	}//---------------------------------------------------;
 	
 	
-	// Scans the task queue and executes them in order
-	// also executes multiple at once if they are async.
+	/**
+	   Request to start a new task
+	   - Called on 1)First Run, 2)On task complete
+	   - Check slots/async/sync and run accordingly
+	   - When this is called, implies that a slot is open
+	   - If all complete, completes Job
+	**/
 	function feedQueue()
 	{
-		// Normally I would want to LOCK here.
+		// Important, check for `taskgen` first
+		if (taskgen != null)
+		{
+			if (currentTasks.length < MAX_CONCURRENT)
+			{
+				var t = taskgen();
+				if (t == null){ // Generator end
+					taskgen = null;
+					return feedQueue();
+				}
+	
+				t.async = true;
+				startNextTask(t);
+				feedQueue();	// Must call this in order to run other generated in parallel
+			}
+			
+			return;
+		}
+		
 		if (taskQueue.length > 0)
 		{
-			var t = taskQueue[0];
+			var t = taskQueue[0]; // Peek the next task
 			if (currentTasks.length < MAX_CONCURRENT)
 			{
 				// if previous was SYNC, and there are 0 running tasks, so ok to run
@@ -340,15 +381,22 @@ class CJob
 	}//---------------------------------------------------;
 	
 	// Force - Starts the next task on the queue
+	// NEW : Or force run a task ( a generated task )
 	// PRE : taskQueue.Count > 0 ; Checked earlier
-	function startNextTask()
+	// - Called from feedQueue()
+	function startNextTask(?_t:CTask)
 	{
 		var t:CTask;
 		
-		t = taskQueue.shift();	// Gets the first element
-			t.parent = this;
-			t.dataGet = taskData;
-			t.onStatus = _onTaskStatus;
+		if (_t != null) {
+			t = _t;
+		}else {
+			t = taskQueue.shift();	// Gets the first element
+		}
+		
+		t.parent = this;
+		t.dataGet = taskData;
+		t.onStatus = _onTaskStatus;
 			
 		currentTasks.push(t);
 		

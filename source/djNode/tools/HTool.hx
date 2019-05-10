@@ -58,6 +58,7 @@ class HTool
 		
 	/**
 	   Get filename and line of last thrown error
+	   !! NEEDS `jstack` haxelib to work
 	**/
 	public static function getExStackThrownInfo()
 	{

@@ -283,11 +283,10 @@ class FileTool
 	}//---------------------------------------------------;
 	
 	/**
-	   Returns an Array with FullPaths of all files in a Directory Recursively. 
-	   Meaning it will traverse all subdirectories as well
+	   DeepScan a folder for files. Returns <Array> with FullPaths of all files found
 	   @param	rootPath The Root Path to start
 	   @param	ext If set, it will only return files matching these extensions. 
-				CASE INSENSITIVE for results. MUST SET EXTENSIONS TO LOWER CASE 
+				Use Lowercase only : Case Insensitive :  No dot (.) in ext
 				e.g. ['cue','mp3']
 	   @return
 	**/
@@ -447,6 +446,23 @@ class FileTool
 	public static function appFileToFullPath(filePath:String)
 	{
 		return Path.join(Path.dirname(Sys.programPath()), filePath);
+	}//---------------------------------------------------;
+	
+	
+	
+	/**
+	   Ensures that filename does not exist in the path it is in
+	   by adding a symbol (_) at the end of the filename until unique
+	   @param	filename
+	   @return
+	**/
+	public static function getUniqueFileName(filename:String):String
+	{
+		while (Fs.existsSync(filename)) {
+			var o = Path.parse(filename);
+			filename = Path.join(o.dir, o.name + "_" + o.ext);
+		}
+		return filename;
 	}//---------------------------------------------------;
 
 }
