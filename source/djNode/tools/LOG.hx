@@ -29,11 +29,10 @@ package djNode.tools;
 
 import haxe.Log;
 import haxe.PosInfos;
+import js.Error;
 import js.Node;
 import js.node.Fs;
 import js.node.Path;
-
-// -- Use the logging function on the debug builds only --
 
 typedef LogMessage = {
 	?pos:PosInfos,
@@ -44,21 +43,19 @@ typedef LogMessage = {
 @:dce
 class LOG 
 {
+	// Holds prerendered text for each type of log level
+	static final messageTypes:Array<String> = [ "DEBUG", "INFO", "WARN", "ERROR", "FATAL" ];
+	
 	static var _isInited:Bool = false;	
 	
 	// Store logMessages here.
 	static var messages:Array<LogMessage>;
-	
-	// Holds prerendered text for each type of log level
-	static var messageTypes:Array<String>;
 	
 	// Helper var, stores time
 	static var _t:Float;
 	
 	// The socket.io object.
 	static var io:Dynamic = null;
-	
-	// == USER SET FLAGS ========================;
 
 	// User can set a custom message receiver for log messages
 	// like push all messages to a text window.
@@ -68,38 +65,28 @@ class LOG
 	public static var logLevel:Int = 0;
 	
 	// If this is set, then program logs will write to that file
-	static var logFile:String = null;
+	public static var logFile(default, null):String = null;
 	
-	// If true, the logger will write to the log file in realtime, else at the end of the program
-	static var flag_realtime_file:Bool = true;
-	
-	// Use socket.io logging ?
+	// UNSUPPORTED
 	static var flag_socket_log:Bool = false;
 	
-	// Keep messages in memory?
-	static var flag_keep_in_memory:Bool = true;
-	
-	// How many messages to keep in memory, -- Avoid hogging the ram with a huge message log.
-	static var param_memory_buffer:Int = 8192;
-
-	// If true will show a the message type at the start of the string on file logs
+	/** If true will show a the message type at the start of the string on file logs
+	 *  Default = false */
 	public static var FLAG_SHOW_MESSAGE_TYPE = false;
 	
-	//====================================================;
-	// FUNCTIONS
-	//====================================================;
+	/** If true will show (file:line) at the beginning of each line ( on debug builds ) 
+	 * Default = true */
+	public static var FLAG_SHOW_POS = true;
 	
-	/* Make sure to set any parameters BEFORE initializing this class 
-	 **/
-	public static function init(file:String = null, realtime:Bool = false):Void
+	/** If > 0. Will limit the number of log messages in memory. File logging is not affected */
+	public static var BUFFER_SIZE:Int = 8000;
+	
+	// --
+	public static function init()
 	{
 		if (_isInited) return;
 			_isInited = true;
-		
 		messages = [];
-		messageTypes = [ "DEBUG", "INFO", "WARN", "ERROR", "FATAL" ];
-		
-		if (file != null) setLogFile(file, realtime);
 	}//---------------------------------------------------;
 	
 	// --
@@ -111,10 +98,6 @@ class LOG
 	// --
 	public static function end():Void 
 	{
-		if (logFile != null && flag_realtime_file == false) {
-			for (i in messages) push_File(i);
-		}
-		
 		// Stop the socket if it's listening
 		if (flag_socket_log) untyped( io.close() ); // untyped because nodejsLib is complaining
 	}//--------------------------------------------;
@@ -160,18 +143,17 @@ class LOG
 			log:Std.string(obj), level:level 
 		};
 		
-		if (flag_keep_in_memory) {
-			// If the buffer is full, remove the oldest
-			if (messages.length == param_memory_buffer) {
-				messages.shift();
-			}
-			messages.push( logmsg );
+		if (BUFFER_SIZE > 0 && messages.length >= BUFFER_SIZE)
+		{
+			messages.shift();
 		}
-				
+		
+		messages.push(logmsg);
+		
 		if (flag_socket_log) 
 			push_SocketText(logmsg);
 			
-		if (flag_realtime_file && logFile != null) 
+		if (logFile != null) 
 			push_File(logmsg);
 			
 		if (onLog != null) onLog(logmsg);
@@ -181,6 +163,7 @@ class LOG
 	 * Set Logging through an http Slot,
 	 * Connect to http://localhost:80
 	 */
+	@:deprecated("Broken")
 	public static function setSocketLogging(port:Int = 80)
 	{	
 		//- setup the socket.io debugging
@@ -203,18 +186,11 @@ class LOG
 			//io.sockets.emit("maxLines", param_memory_buffer );
 		
 			// In case there are previous logs, push them to the socket
-			if (messages.length > 0) {
-				for (i in messages) push_SocketText(i);
-			}
+			for (i in messages) push_SocketText(i);
 		});
 		
 	}//---------------------------------------------------;
 	
-	/**
-	 * @PRE io is inited.
-	 * @param	data Data to be logged
-	 * @param	level Logging level,
-	 */
 	static inline function push_SocketText(l:LogMessage)
 	{
 		io.sockets.emit("logText", { data:l.log, pos:l.pos, level:l.level } );
@@ -233,52 +209,48 @@ class LOG
 	{
 		var m = "";
 		if (FLAG_SHOW_MESSAGE_TYPE) m += messageTypes[log.level] + " ";
+		#if debug
+		if (FLAG_SHOW_POS)
 		m += "(" +  log.pos.fileName.split('/').pop() + ":" + log.pos.lineNumber + ") ";
+		#end
 		m += log.log + "\n";
-		Fs.appendFileSync(logFile, m, 'utf8');
+		
+		try{
+			Fs.appendFileSync(logFile, m, 'utf8');
+		}catch (e:Error)
+		{
+			BaseApp.TERMINAL.printf('~red~ - NO SPACE LEFT FOR THE LOG FILE - ~!~\n');
+			Sys.exit(1);
+		}
 	}//---------------------------------------------------;
 		
 	/**
-	 * Set the log file, If there were log call before setting the file
-	 * then those entries will be written as well.
-	 * @param	filename
-	 * @param	realtime_update If TRUE the file will update in real time, if False the log will be written once the program ends
+	 * Set a log file to be updates automatically on LOG.log() calls
+	 * If there were any log calls before setting , then those entries will be written as well.
+	 * @param	filename Path to a log file, will be overwritten
 	 */
-	public static function setLogFile(filename:String, realtime_update:Bool = false)
+	public static function setLogFile(filename:String)
 	{	
 		// - get params
 		logFile = filename;
-		flag_realtime_file = realtime_update;
 		
-		// - check log file
-		try { 
-			
-			// TODO: Add time and date and source file info.
-			var fileHeader = 
-				" - LOG -\n" +
-				" -------\n" +
-				" - " + logFile + "\n" +
-				" - Created: " + Date.now().toString() + "\n" +
-				" - App: " + Path.basename(Node.process.argv[1]) + "\n" +
-				" ---------------------------------------------------\n\n";
-				Fs.writeFileSync(logFile, fileHeader, 'utf8');
-		}catch (e:Dynamic) { 
-			log('Could not create logfile - $logFile', 3);
-			logFile = null;
-		}//--
-				
+		var header = 
+			" - LOG -\n" +
+			" -------\n" +
+			" - " + logFile + "\n" +
+			" - Created: " + Date.now().toString() + "\n" +
+			" - App: " + Path.basename(Node.process.argv[1]) + "\n" +
+			" ---------------------------------------------------\n\n";
+		try
+			Fs.writeFileSync(logFile, header, {encoding:'utf8'})
+		catch (e:Error)
+			throw 'Cannot Create Log File "$logFile"';
 		
 		// There is a case where the log array has data,
 		// write that data to the file.
-		if(flag_realtime_file && messages.length > 0 && logFile != null) {
-			for (i in messages) push_File(i);
-		}
-		
+		for (i in messages) push_File(i);
 	}//---------------------------------------------------;
 
-	//====================================================;
-	// Timing Functions
-	//====================================================;
 	
 	/**
 	 * Create a time reference,

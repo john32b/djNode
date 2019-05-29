@@ -1,14 +1,14 @@
-# djNode (haxe library)
+# `djNode` (haxe library)
 
-**Version:** 0.3  
+**Version:** 0.4  
 **Author:** John Dimi :computer:, <johndimi@outlook (.) com> *twitter*: [@jondmt](https://twitter.com/jondmt)  
 **Project Page and Sources:** [https://github.com/johndimi/djNode](https://github.com/johndimi/djNode)  **Language:** Haxe 4.0  
-**Requires:** hxnodejs , **Compiles to:** nodeJs code  
+**Requires:** hxnodejs , **Compiles to:** nodeJS code  
 **Platform:** Windows & Linux
 
 **djNode** is a set of tools and helpers for creating **nodeJS CLI** applications fast and easily.
 
-### Features
+### :loudspeaker: Features
 - Terminal **Print Helper** class, that supports coloring, text formatting, cursor manipulation and more.
 - Advanced **input arguments handling** with automatic safeguards and easy retrieval of argument options/actions.
 - Automatic handling of multiple **Tasks** that can run in **sync** or **async**. Progress reports and chaining.
@@ -18,26 +18,27 @@
 - More to come
 
 
-### How to install
+### :small_blue_diamond: How to install
 
 `haxelib git djNode https://github.com/johndimi/djNode.git`
 
 
-### Components/Tools
+### :electric_plug: Components/Tools
 
 Included in the source is a **test** project that showcases and tests the various components. 
 
-#### Terminal.hx
+#### `Terminal.hx`
 Contains basic functions for printing and moving the cursor.  
 :star2: **Feature** : Inline tagging system to quickly inject color codes, used in `sprintf` and `printf` functions.
 
-*Example 1:*
+*Example 1:*    
+
 ```javascript
 T.printf('~yellow~Quick and easy~green~ Multicolored~red~ Strings~!~\n');
 ```
-![printf example](images/printf_example.png)
+![printf example](images/printf_example.png)  
 
-*Screen from the Terminal Demo : *
+*Screen from the Terminal Demo:*  
 ![Terminal Demo](images/example_test_001.png)
 
 #### `CTask.hx`
@@ -82,10 +83,10 @@ var j = new CJob("Job Name");
 Listens to a `CJob` status updates and write progress to the terminal.  
 **Features** : Can also show individual track progress, (*Check the test project*)
 
-*Synoptic Job report*\
+*Synoptic Job report*  
 ![Synopotic Job Report](images/example_test_004.gif)
 
-*Individual Task Report*\
+*Individual Task Report*  
 ![Individual Task Report](images/example_test_005.gif)
 
 
@@ -113,7 +114,7 @@ class Main extends BaseApp {
 		ARGS.requireAction = true;
 		ARGS.Actions.push(['c', 'Compress', 'Compress a file']);
 		ARGS.Actions.push(['d', 'Decompress', 'Decompress a file']);
-		ARGS.Options.push(['-t', 'Temp', 'Set Temp Folder','yes']);
+		ARGS.Options.push(['t', 'Temp', 'Set Temp Folder','yes']);
 		super.init();
 	}
 ```
@@ -122,6 +123,7 @@ class Main extends BaseApp {
 ![BaseApp Wrong Arguments](images/baseapp_02.png)
 
 **You can access the passed in arguments like this:**
+
 ```haxe
 	override function onStart() 
 	{
@@ -131,11 +133,21 @@ class Main extends BaseApp {
 	}
 ```
 
-**Use `-help` to print automatic usage infos:**\
+**Use `-help` to print automatic usage infos:**  
 ![BaseApp Usage Infos](images/baseapp_01.png)
 
-### Infos
+### :notebook: Notes
 
-Mostly personal library that I use in some tools of mine. [CDCRUSH nodejs](https://www.npmjs.com/package/cdcrush) version uses this.  
+This is mostly personal library that I have used in some projects and tools, like:  
+- cdcrush *(cd game compression)* https://www.npmjs.com/package/cdcrush
+
+- romdj *(emulation Rom Builder)* https://github.com/johndimi/romdj
+
+- djTui *(NodeJS TUI interface library)* https://github.com/johndimi/djTui
+
+- psxlauncher *(TUI based emulator launcher)* https://github.com/johndimi/psxlauncher
+
+  
+
 :warning: **WARNING** In case the Windows Default Command Line doesn't work use another console emulator like [cmder](http://cmder.net/) (*recommended*)
 

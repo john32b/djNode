@@ -6,7 +6,8 @@ package djNode.utils;
  */
 interface ISendingProgress 
 {
-  	public var onComplete:Bool->Void;
+  	public var onComplete:Void->Void;
+	public var onFail:String->Void;
 	public var onProgress:Int->Void;
 	public var ERROR(default, null):String;
 }

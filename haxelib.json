@@ -4,9 +4,9 @@
 	"url" : "",
 	"license": "",
 	"tags": ["nodeJs"],
-	"version": "0.1.0",
+	"version": "0.4.0",
 	"classPath": "source/",
-	"releasenote": "Initial release",
+	"releasenote": "",
 	"contributors": ["JohnDimi"],
 	"dependencies": { "hxnodejs": "" }
 }

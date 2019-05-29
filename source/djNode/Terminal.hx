@@ -36,7 +36,7 @@
  * ================
  *   
  * 	= Tags in Strings for inline coloring : 
- *    e.g. printf("~red~Color Red~bg_white~White BG~!~");
+ *    e.g. printf("~red~Color Red~:white~White BG~!~");
  * 		   is the equivalent of:
  * 	       fg(Color.red).print("Color Red").bg(Color.white).print("White BG").reset();
  * 
@@ -86,29 +86,29 @@ class Terminal
 	//====================================================;
 
 	// Map colors to escape codes
-	private var colormap_fg:Map<Color,String>;
-	private var colormap_bg:Map<Color,String>;	
+	var COLORS_FG:Map<Color,String>;
+	var COLORS_BG:Map<Color,String>;	
 	
 	// The escape Sequence can also be '\033[', or even '\e[' in linux ''
 	// I am not using the escape sequence as a reference anywhere, as hard typing is faster.
-	private static inline var ESCAPE_SEQ 	= '\x1B['; 	
-	private static inline var _BOLD 		= '\x1B[1m';
-	private static inline var _DIM 			= '\x1B[2m';
-	private static inline var _UNDERL		= '\x1B[4m';
-	private static inline var _BLINK 		= '\x1B[5m';
-	private static inline var _HIDDEN 		= '\x1B[8m';
+	static inline var ESCAPE_SEQ 	= '\x1B['; 	
+	static inline var _BOLD 		= '\x1B[1m';
+	static inline var _DIM 			= '\x1B[2m';
+	static inline var _UNDERL		= '\x1B[4m';
+	static inline var _BLINK 		= '\x1B[5m';
+	static inline var _HIDDEN 		= '\x1B[8m';
 	
-	private static inline var _RESET_ALL 	= '\x1B[0m';	// All Attributes off
-	private static inline var _RESET_FG	 	= '\x1B[39m';	// Foreground to default
-	private static inline var _RESET_BG 	= '\x1B[49m';	// Background to default
-	private static inline var _RESET_BOLD 	= '\x1B[21m';
-	private static inline var _RESET_DIM 	= '\x1B[22m';
-	private static inline var _RESET_UNDERL	= '\x1B[24m';
-	private static inline var _RESET_BLINK	= '\x1B[25m';
-	private static inline var _RESET_HIDDEN	= '\x1B[28m';
+	static inline var _RESET_ALL 	= '\x1B[0m';	// All Attributes off
+	static inline var _RESET_FG	 	= '\x1B[39m';	// Foreground to default
+	static inline var _RESET_BG 	= '\x1B[49m';	// Background to default
+	static inline var _RESET_BOLD 	= '\x1B[21m';
+	static inline var _RESET_DIM 	= '\x1B[22m';
+	static inline var _RESET_UNDERL	= '\x1B[24m';
+	static inline var _RESET_BLINK	= '\x1B[25m';
+	static inline var _RESET_HIDDEN	= '\x1B[28m';
 	
 	// Hold all the available colors.
-	private static var AVAIL_COLORS:Array<String> = [ 
+	static var AVAIL_COLORS:Array<String> = [ 
 		Color.black, Color.white, Color.gray, Color.darkgray,
 		Color.red, Color.darkred, Color.green, Color.darkgreen,
 		Color.blue, Color.darkblue, Color.cyan, Color.darkcyan,
@@ -134,43 +134,46 @@ class Terminal
 	//====================================================;
 	
 	public function new() 
-	{ 
+	{
 		// Set the foregrounds
-		colormap_fg = new Map();		
-		colormap_fg.set(Color.darkgray, 	'\x1B[90m');
-		colormap_fg.set(Color.red, 			'\x1B[91m');
-		colormap_fg.set(Color.green,		'\x1B[92m');
-		colormap_fg.set(Color.yellow,		'\x1B[93m');
-		colormap_fg.set(Color.blue,			'\x1B[94m');
-		colormap_fg.set(Color.magenta,		'\x1B[95m');
-		colormap_fg.set(Color.cyan,			'\x1B[96m');
-		colormap_fg.set(Color.white, 		'\x1B[97m');
-		colormap_fg.set(Color.black,		'\x1B[30m');
-		colormap_fg.set(Color.darkred, 		'\x1B[31m');
-		colormap_fg.set(Color.darkgreen,	'\x1B[32m');
-		colormap_fg.set(Color.darkyellow,	'\x1B[33m');
-		colormap_fg.set(Color.darkblue, 	'\x1B[34m');
-		colormap_fg.set(Color.darkmagenta, 	'\x1B[35m');
-		colormap_fg.set(Color.darkcyan, 	'\x1B[36m');
-		colormap_fg.set(Color.gray, 		'\x1B[37m');
+		COLORS_FG = [
+			Color.darkgray => 	'\x1B[90m',
+			Color.red => 		'\x1B[91m',
+			Color.green => 		'\x1B[92m',
+			Color.yellow => 	'\x1B[93m',
+			Color.blue => 		'\x1B[94m',
+			Color.magenta => 	'\x1B[95m',
+			Color.cyan => 		'\x1B[96m',
+			Color.white => 		'\x1B[97m',
+			Color.black => 		'\x1B[30m',
+			Color.darkred => 	'\x1B[31m',
+			Color.darkgreen => 	'\x1B[32m',
+			Color.darkyellow => '\x1B[33m',
+			Color.darkblue => 	'\x1B[34m',
+			Color.darkmagenta=> '\x1B[35m',
+			Color.darkcyan => 	'\x1B[36m',
+			Color.gray => 		'\x1B[37m'
+		];
+		
 		//- Set the backgrounds
-		colormap_bg = new Map();
-		colormap_bg.set(Color.darkgray, 	'\x1B[100m');
-		colormap_bg.set(Color.red,			'\x1B[101m');
-		colormap_bg.set(Color.green,		'\x1B[102m');
-		colormap_bg.set(Color.yellow,		'\x1B[103m');
-		colormap_bg.set(Color.blue,			'\x1B[104m');
-		colormap_bg.set(Color.magenta,		'\x1B[105m');
-		colormap_bg.set(Color.cyan,			'\x1B[106m');
-		colormap_bg.set(Color.white, 		'\x1B[107m');
-		colormap_bg.set(Color.black,		'\x1B[40m');
-		colormap_bg.set(Color.darkred, 		'\x1B[41m');
-		colormap_bg.set(Color.darkgreen,	'\x1B[42m');
-		colormap_bg.set(Color.darkyellow, 	'\x1B[43m');
-		colormap_bg.set(Color.darkblue, 	'\x1B[44m');
-		colormap_bg.set(Color.darkmagenta, 	'\x1B[45m');
-		colormap_bg.set(Color.darkcyan, 	'\x1B[46m');
-		colormap_bg.set(Color.gray, 		'\x1B[47m');
+		COLORS_BG = [
+			Color.darkgray => 	'\x1B[100m',
+			Color.red =>		'\x1B[101m',
+			Color.green =>		'\x1B[102m',
+			Color.yellow =>		'\x1B[103m',
+			Color.blue =>		'\x1B[104m',
+			Color.magenta =>	'\x1B[105m',
+			Color.cyan =>		'\x1B[106m',
+			Color.white => 		'\x1B[107m',
+			Color.black =>		'\x1B[40m',
+			Color.darkred => 	'\x1B[41m',
+			Color.darkgreen =>	'\x1B[42m',
+			Color.darkyellow => '\x1B[43m',
+			Color.darkblue => 	'\x1B[44m',
+			Color.darkmagenta=> '\x1B[45m',
+			Color.darkcyan => 	'\x1B[46m',
+			Color.gray => 		'\x1B[47m'
+		];
 	
 	}//---------------------------------------------------;
 	
@@ -286,7 +289,7 @@ class Terminal
 	public function fg(?col:Color):Terminal
 	{
 		if (col == null) return resetFg();
-		return print(colormap_fg.get(col));
+		return print(COLORS_FG.get(col));
 	}//---------------------------------------------------;
 	
 	/**
@@ -296,7 +299,7 @@ class Terminal
 	public function bg(?col:Color):Terminal
 	{
 		if (col == null) return resetBg();
-		return print(colormap_bg.get(col));
+		return print(COLORS_BG.get(col));
 	}//---------------------------------------------------;
 
 	// This is mostly unused.
@@ -486,7 +489,7 @@ class Terminal
 	 */
 	public function H1(text:String, color:String = "darkmagenta")
 	{		
-		printf('~black~~bg_$color~ $H1_SYMBOL~white~ $text ~!~\n~line~');
+		printf('~black~~:$color~ $H1_SYMBOL~white~ $text ~!~\n~line~');
 	}//---------------------------------------------------;
 	
 	/**
@@ -495,7 +498,7 @@ class Terminal
 	 */
 	public function H2(text:String, color:String = "cyan")
 	{
-		printf(' ~bg_$color~~black~$H2_SYMBOL~!~ ~$color~$text~!~\n ~line2~');
+		printf(' ~:$color~~black~$H2_SYMBOL~!~ ~$color~$text~!~\n ~line2~');
 	}//---------------------------------------------------;
 	
 	/**
@@ -542,12 +545,14 @@ class Terminal
 	 * 
 	 * Tags:
 	 * 	~!~			; Reset ALL
-	 *  ~!fg~		; Reset Foreground color
-	 *  ~!bg~		; Reset background color
+	 *  ~!.~		; Reset Foreground color
+	 *  ~!:~		; Reset background color
 	 *  ~line~		; Prints a Line
 	 *  ~line2~		; Prints a Line Style 2
-	 *  ~bg_COLOR~ 	; where COLOR is a valid COLOR name ; Background Color
+	 *  ~b~			; Bold
+	 *  ~!b~		; Reset Bold
 	 *  ~COLOR~		; where COLOR is a valid COLOR name	; Foreground Color
+	 *  ~=COLOR~ 	; where COLOR is a valid COLOR name ; Background Color
 	 * 
 	 * Examples:
 	 * "~yellow~This is yellow. ~red~And this is red~!~"
@@ -558,11 +563,11 @@ class Terminal
 	{
 		// Match anything between ~ ~
 		return(~/~(\S[^~]*)~/g.map(str, function(reg) {
-			var s = reg.matched(1);
+			var s:String = reg.matched(1);
 			switch(s) {
 			case "!"	: return _RESET_ALL;
-			case "!fg"	: return _RESET_FG;
-			case "!bg"	: return _RESET_BG;
+			case "!."	: return _RESET_FG;
+			case "!:"	: return _RESET_BG;
 			case "b"	: return _BOLD;
 			case "!b"	: return _RESET_BOLD;
 			case "line":  return StringTools.lpad("", DEFAULT_LINE_SYMBOL, DEFAULT_LINE_WIDTH) + "\n";
@@ -571,10 +576,10 @@ class Terminal
 			// Proceed checking for colors or bg colors:
 			default :
 			try{
-			 if(s.substr(0, 3)=="bg_")
-				return colormap_bg.get(s.substr(3));
+			 if (s.charAt(0) == ":")
+				return COLORS_BG.get(s.substr(1));
 			 else 
-				return colormap_fg.get(s);
+				return COLORS_FG.get(s);
 			 }catch (e:Dynamic) {
 				// Error getting the color, user must have typoed.
 				return "";

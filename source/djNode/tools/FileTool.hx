@@ -24,7 +24,7 @@ class FileTool
 	   <inPath> will be created if it does not exist
 	   e.g. createRecursiveDir("c:\\myfolder\\temp1\\temp2\\temp3");
 	   @param	inPath The path to be created
-	   @throws
+	   @throws String
 	**/
 	public static function createRecursiveDir(inPath:String) 
 	{	
@@ -34,7 +34,7 @@ class FileTool
 		
 		var paths:Array<String> = Path.normalize(inPath).split(Path.sep);
 		var cM = paths.length;
-		if (cM <= 0) throw 'Path `$inPath` is invalid';
+		if (cM <= 0) throw 'Path "$inPath" is invalid';
 		var c = 0;
 		var p1 = "";	// Cummulative path for iterations 
 		// Check to see if the path is drive path (win32 only)
@@ -45,19 +45,18 @@ class FileTool
 			try {
 				Fs.statSync(paths[0]);
 			}catch (e:Error) {
-				throw 'Drive ${paths[0]} does not exist!!';	
+				throw 'Drive "${paths[0]}" does not exist!';
 			}
 			c = 1; //skip the first iteration because it's a drive
 			p1 = paths[0] + Path.sep;
 		}
-		
-		while (c < cM) {
+		try while (c < cM) {
 			p1 = Path.join(p1, paths[c]);
 			if (pathExists(p1) == false) {
 				Fs.mkdirSync(p1);
 			}
 			c++;
-		}
+		} catch (e:Error) throw 'Cannot create "$inPath"';
 	}//---------------------------------------------------;
 	
 	/**
@@ -150,7 +149,7 @@ class FileTool
 			Fs.renameSync(source, dest);
 		}catch (e:Error)
 		{
-			copyFile(source, dest);
+			copyFileSync(source, dest);
 			
 			try{
 				Fs.unlinkSync(source);
@@ -161,18 +160,37 @@ class FileTool
 		
 	}//---------------------------------------------------;
 
+	
+	
+	public static function copyFile(source:String, dest:String, callback:String->Void)
+	{
+		var r = Fs.createReadStream(source);
+		var w = Fs.createWriteStream(dest);
+		var _c = false;
+		var done = (e:Error)->{
+			if (!_c){
+				if (e != null) 
+				callback(e.message);
+					else 
+				callback(null);
+			}
+			_c = true;
+		};
+		r.once('error', done);
+		w.once('error', done);
+		w.once('close', done);
+		r.pipe(w);
+	}//---------------------------------------------------;
+	
+	
 	/**
 	 * @SYNC
 	 * Copies a file. Destination will be created or overwritten
 	 * @param	source
 	 * @param	dest
 	 */
-	public static function copyFile(source:String, dest:String) 
+	public static function copyFileSync(source:String, dest:String) 
 	{	
-		#if !js
-			throw "Not supported yet";
-		#end
-		
 		// SYNC:
 		Fs.writeFileSync(dest, Fs.readFileSync(source));
 		
@@ -286,8 +304,8 @@ class FileTool
 	   DeepScan a folder for files. Returns <Array> with FullPaths of all files found
 	   @param	rootPath The Root Path to start
 	   @param	ext If set, it will only return files matching these extensions. 
-				Use Lowercase only : Case Insensitive :  No dot (.) in ext
-				e.g. ['cue','mp3']
+				Use Lowercase for defining, Matches are Case Insensitive
+				e.g. ['.cue','.mp3']
 	   @return
 	**/
 	public static function getFileListFromDirR(rootPath:String, ?ext:Array<String>):Array<String>
@@ -352,7 +370,7 @@ class FileTool
 		// The returned object
 		var fileList:Array<String> = new Array();
 		var basePath = Path.dirname(path);
-		var extToGet = getFileExt(path).toLowerCase();
+		var extToGet = getFileExt(path);
 		var baseToGet:String;
 		var exp = ~/(\S*)\./;
 		if (exp.match(Path.basename(path))) {
@@ -379,8 +397,8 @@ class FileTool
 					if (exp.match(i)) { 
 						if (baseToGet != exp.matched(1)) continue; }
 					else continue;
-				if (extToGet == "*") { fileList.push(Path.join(basePath,i)); continue; }
-				if (extToGet == Path.extname(i).substr(1).toLowerCase())
+				if (extToGet == ".*") { fileList.push(Path.join(basePath,i)); continue; }
+				if (extToGet == Path.extname(i).toLowerCase())
 				{ fileList.push(Path.join(basePath,i)); continue; }
 			}
 		}
@@ -414,14 +432,14 @@ class FileTool
 	}//---------------------------------------------------;
 	
 	/**
-	 * Returns lowercase extension, with no '.'
-	 * e.g. "mp3","jpg"
+	 * Returns lowercase extension
+	 * e.g. ".mp3",".jpg"
 	 * @param	file
 	 * @return
 	 */
 	public static function getFileExt(file:String):String 
 	{
-		return Path.extname(file).substr(1).toLowerCase();
+		return Path.extname(file).toLowerCase();
 	}//---------------------------------------------------;
 	
 	/**
@@ -453,10 +471,11 @@ class FileTool
 	/**
 	   Ensures that filename does not exist in the path it is in
 	   by adding a symbol (_) at the end of the filename until unique
+	   - Works with folders too
 	   @param	filename
 	   @return
 	**/
-	public static function getUniqueFileName(filename:String):String
+	public static function getUniquePath(filename:String):String
 	{
 		while (Fs.existsSync(filename)) {
 			var o = Path.parse(filename);

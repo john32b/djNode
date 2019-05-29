@@ -19,7 +19,7 @@ class Main extends BaseApp
 		// Arguments example
 		ARGS.inputRule = "opt";	// Inputs are optional
 		ARGS.outputRule = "no";	// No output is needed
-		ARGS.Options.push(['-f', 'Fake parameter', 'Test getting an options parameter', 'yes']); // yes=require value
+		ARGS.Options.push(['f', 'Fake parameter', 'Test getting an options parameter', 'yes']); // yes=require value
 		
 		super.init();
 	}//---------------------------------------------------;
@@ -32,7 +32,7 @@ class Main extends BaseApp
 		// Read Arguments Test/Example
 		if (argsOptions.f != null)
 		{
-			T.println("~~ Option [-f] was set, with a parameter of (" + argsOptions.f + ") ~~");
+			T.println("~~ Option [-f] was set, with a parameter of (" + argsOptions.f + ") ~~\n");
 		}
 		
 		T.H2("Component examples/tests :");

@@ -40,7 +40,6 @@ class CLIApp
 	// - If true will log STDERR/STDOUT output (stdOutLog/stdErrLog)
 	// - Do not use if you work with streams
 	// - Will autoset the stream to UTF8
-	// - Togglable in case you need to access STDOUT
 	public var LOG_STDERR:Bool = true;
 	public var LOG_STDOUT:Bool = true;
 	
@@ -57,8 +56,11 @@ class CLIApp
 	 *  If true, will read from that in case of Error */
 	public var FLAG_ERRORS_ON_STDERR:Bool = false;
 	
-	// For debugging purposes, store the last start() comman
+	// For debugging purposes, store the last start() command
 	public var log_last_call(default, null):String;
+	
+	// True: Log only errors
+	public static var FLAG_LOG_QUIET:Bool = true;
 	//---------------------------------------------------;
 
 	/**
@@ -82,6 +84,7 @@ class CLIApp
 		
 		log_last_call = '$exePath ' + args.join(' ');
 		
+		if (!FLAG_LOG_QUIET)
 		LOG.log('RUN: ' + log_last_call);
 		
 		// HELP:
@@ -118,6 +121,7 @@ class CLIApp
 				LOG.log('Process `$exePath` End - [ ERROR ] - $ERROR', 3);
 				HTool.sCall(onClose,false);
 			}else{
+				if (!FLAG_LOG_QUIET)
 				LOG.log('Process `$exePath` End - [ OK ]');
 				HTool.sCall(onClose, true);
 			}
@@ -191,6 +195,9 @@ class CLIApp
 	**/
 	public static function quickExecS(path:String):String
 	{
+		// Useful to know:
+		// var stdo:String = ChildProcess.execSync('app.exe', {stdio:['ignore', 'pipe', 'ignore']});
+		// returns the stdout, [ignore,pipe,ignore] are stdin,stdout,stderr. Default is all 'pipe'
 		try{
 			return ChildProcess.execSync(path);
 		}catch (e:Dynamic)

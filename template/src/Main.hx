@@ -9,7 +9,7 @@ class Main extends BaseApp
 	{
 		// All traces will redirect to LOG object
 		LOG.pipeTrace();
-		LOG.setLogFile("log.txt", true);
+		LOG.setLogFile("log.txt");
 		
 		//FLAG_USE_SLASH_FOR_OPTION = true;
 		

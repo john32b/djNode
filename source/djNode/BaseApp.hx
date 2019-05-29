@@ -56,7 +56,16 @@ class BaseApp
 	
 	// # USERSET
 	// If true will require '/' for options, else '-'
-	var FLAG_USE_SLASH_FOR_OPTION:Bool = false;
+	var FLAG_USE_SLASH_FOR_OPTION(default, set):Bool; // Default at new() to use setter
+	function set_FLAG_USE_SLASH_FOR_OPTION(v){
+		FLAG_USE_SLASH_FOR_OPTION = v;
+		if (v){
+			_sb = ['/', '?'];
+		}else{
+			_sb = ['-', 'help'];
+		}
+		return v;
+	};
 	
 	// #USERSET
 	// Fill this object up (check the typedef for more info)
@@ -69,12 +78,13 @@ class BaseApp
 	// Fill this object up, (Check the typedef "AppArguments" for more info)
 	var ARGS:AppArguments = {
 		inputRule:"opt",
-		outputRule:"opt",	
+		outputRule:"opt",
 		requireAction:false,
 		supportWildcards:true,
 		supportStrayArgs:false,	// Not Implemented
 		helpInput:null,
 		helpOutput:null,
+		helpText:null,
 		Actions:[],
 		Options:[]
 	};
@@ -85,6 +95,7 @@ class BaseApp
 	var argsInput:Array<String> = [];
 	
 	// Holds argument Output <string> can be file or folder etc
+	// Same as argsOptions.o
 	var argsOutput:String = null;
 	
 	// Holds all argument <options>
@@ -96,16 +107,18 @@ class BaseApp
 	// Holds Action.NAME ( second Array index )
 	var argsAction:String = null;
 
-	// Autoset, actual symbol to expect from optons e.g. '-' , '/'
-	@:noCompletion var _optSmb:String;
-	// Autoset, actual symbol to expect for help "help" or "?"
-	@:noCompletion var _helpSmb:String;
+	// Autoset, Special Parameters symbols
+	// [0] what to declare options with (-,/)
+	// [1] help string (? or help)
+	@:noCompletion var _sb:Array<String>;
 	
 	/**
 	 * 
 	 */
 	public function new() 
 	{
+		FLAG_USE_SLASH_FOR_OPTION = false;
+		
 		LOG.init();
 		TERMINAL = new Terminal();
 		T = TERMINAL;
@@ -127,7 +140,6 @@ class BaseApp
 		{
 			var e:String = " ** Uncaught Exception ** \n";
 			if (Std.is(err, Error)) e += err.message; else e += cast err;
-			LOG.log(e, 4);
 			exitError(e);
 		});
 		
@@ -166,10 +178,6 @@ class BaseApp
 	**/
 	function init()
 	{
-		// -
-		_optSmb = FLAG_USE_SLASH_FOR_OPTION?"/":"-";
-		_helpSmb = FLAG_USE_SLASH_FOR_OPTION?"?":"help";
-		
 		// Just in case the program starts with non-standard colors
 		T.reset();
 		
@@ -191,10 +199,10 @@ class BaseApp
 		while ( (arg = arguments[cc++]) != null)
 		{
 			// # <option>, options start with `-` or `/`
-			if (arg.charAt(0) == _optSmb)
+			if (arg.charAt(0) == _sb[0])
 			{
 				// :: Build In <options> 
-				if (arg.toLowerCase().indexOf(_helpSmb) == 1)
+				if (arg.toLowerCase().indexOf(_sb[1]) == 1)
 					throw 'HELP';
 				
 				var o = getArgOption(arg.substr(1));
@@ -229,6 +237,7 @@ class BaseApp
 		
 		// -- Some Post Logic
 		
+		// Quick access to Output?
 		if (argsOptions.o != null) argsOutput = argsOptions.o;
 		
 		
@@ -383,14 +392,16 @@ class BaseApp
 		if (P.executable == null) P.executable = "app.js";
 		var s:String = '   ${P.executable} ';
 		if (A.Actions.length > 0) 	s += "<action> ";
-		if (A.Options.length > 0) 	s += _optSmb + "<option> <parameter> ...\n      ";
+		if (A.Options.length > 0) 	s += _sb[0] + "<option> <parameter> ...\n      ";
 		if (A.inputRule != "no") {
 			s += "<input> ";
 			if (A.inputRule == "multi") s += "... ";
 		}
 		if (A.outputRule != "no"){
-			s += _optSmb + "o <output> ";
+			s += _sb[0] + "o <output> ";
 		}
+		
+		
 		T.print(s).endl().printf("~darkgray~ ~line2~");
 		
 		// -- 
@@ -415,11 +426,11 @@ class BaseApp
 		
 		// - Print <actions>
 		if (A.Actions.length > 0) {
-			T.printf(" ~magenta~<actions> ~!fg~");
+			T.printf(" ~magenta~<actions> ~!.~");
 			T.printf("~darkmagenta~you can set one action at a time ~!~\n");
 			for (i in A.Actions) {
 				if (i[1].charAt(0) == "-") continue;
-				T.printf('~white~ ${i[0]}' + sp(HELP_MARGIN - i[0].length) + '~magenta~${i[1]}');
+				T.printf('~white~ ${i[0]}' + sp(HELP_MARGIN - i[0].length) + '${i[1]}');
 				if (i[3] != null) T.printf('~darkgray~ ~ auto ext:[${i[3]}]');
 				T.endl().print(sp(HELP_MARGIN));
 				T.printf('~gray~ ${i[2]}\n').reset();
@@ -428,18 +439,25 @@ class BaseApp
 		
 		// - Print <options>
 		if (A.Options.length > 0) {
-			T.printf(" ~cyan~<options> ~!fg~");
+			T.printf(" ~cyan~<options> ~!.~");
 			T.printf("~darkcyan~you can set many options~!~\n");
 			for (i in A.Options) 
 			{
 				// Skip printing <options> whose name starts with `-`
 				if (i[1].charAt(0) == "-") continue;
-				T.printf('~white~ $_optSmb${i[0]}' + sp(HELP_MARGIN - i[0].length - 1) + '~cyan~${i[1]}');
+				T.printf('~white~ ${_sb[0]}${i[0]}' + sp(HELP_MARGIN - i[0].length - 1) + '${i[1]}');
 				if (i[3] != null) T.printf('~darkgray~ [requires parameter] ');
 				T.endl().print(sp(HELP_MARGIN));
 				T.printf('~gray~ ${i[2]}\n').reset();
 			}
 		}// --
+		
+		
+		if (ARGS.helpText != null) 
+		{
+			T.endl();
+			T.print('${ARGS.helpText}\n');
+		}
 		
 	}//---------------------------------------------------;
 	
@@ -453,13 +471,14 @@ class BaseApp
 		var P = PROGRAM_INFO;
 		var col = "cyan"; var lineCol = "darkgray"; 
 		T.endl(); // one blank line at first
-		T.printf('~bg_$col~~black~==~!~~$col~~b~ ${P.name} ~darkgray~v${P.version}~!~');
+		T.printf('~:$col~~black~==~!~~$col~~b~ ${P.name} ~darkgray~v${P.version}~!~');
 		
 		if (longer)
 		{
-			if (P.author != null) T.print(' by ${P.author}\n');
+			if (P.author != null) T.print(' by ${P.author}'); 
+			T.endl();
+			if (P.info != null) T.print(' - ${P.info}\n');
 			if (P.desc != null) T.print(' - ${P.desc}\n');
-			if (P.info != null) T.print(' - ${P.info} \n');
 		}else
 		{
 			T.endl();
@@ -473,8 +492,9 @@ class BaseApp
 	 **/
 	function exitError(text:String, showHelp:Bool = false):Void
 	{
-		T.printf('\n~bg_darkred~~white~ ERROR ~!~ ~red~$text\n');
-		if (showHelp) T.printf('~darkgray~ ~line2~~yellow~ $_optSmb$_helpSmb ~!~ for usage info\n');
+		T.printf('\n~:darkred~~white~ ERROR ~!~ ~red~$text\n');
+		if (showHelp) T.printf('~darkgray~ ~line2~~yellow~ ${_sb[0]}${_sb[1]} ~!~ for usage info\n');
+		LOG.log(text, 4);
 		Sys.exit(1);
 	}//---------------------------------------------------;
 	
@@ -510,8 +530,8 @@ class BaseApp
 typedef AppInfo = 
 {
 	name:String,		// Name
-	?desc:String,		// Description
-	?info:String,		// Project Info or contact
+	?info:String,		// Project Info or contact ( currently same as desc )
+	?desc:String,		// Description ( currently same as info )
 	?version:String,	// Version
 	?author:String,		// Author
 	?date:String,		// Build Date
@@ -537,9 +557,11 @@ typedef AppArguments =
 	supportStrayArgs:Bool,	// If true, program will not ERROR on undeclared <options>
 							// # NOT IMPLEMENTED ! !
 	
-							// # For these two . use "\n" for linebreaks.
-	helpInput:String,		// Help text displayed for <input> on the the -help screen
-	helpOutput:String,		// Help text displayed for <input> on the the -help screen
+							// DEV: Use "\n" for linebreaks for help texts
+							
+	helpInput:String,		// Help text displayed for <input> on the the -help screen (optional)
+	helpOutput:String,		// Help text displayed for <input> on the the -help screen (optional)
+	helpText:String,		// Text displayed below program usage on the -help screen (optional)
 	
 	Actions:Array<Array<String>>,	// Holds Actions in an array of arrays.
 									//

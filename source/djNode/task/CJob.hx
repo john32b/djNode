@@ -44,6 +44,7 @@ package djNode.task;
 import djNode.task.CTask;
 import djNode.tools.HTool;
 import djNode.tools.LOG;
+import haxe.Timer;
 import js.Node;
 import js.node.Process;
 import js.node.events.EventEmitter;
@@ -134,10 +135,10 @@ class CJob
 	// #USEREST
 	// NOTE: OnComplete gets called on a clean STACK
 	// Called whenever the Job FAILS
-	public var onFail:Void->Void = null;
+	public var onFail:String->Void = null;
 	
 	// If the job has failed, this holds the ERROR code, copied from task ERROR code
-	public var ERROR(default, null):String;
+	public var ERROR(default, null):String = null;
 
 	// Keep track of whether the job is done and properly shutdown
 	var IS_KILLED:Bool = false;
@@ -164,9 +165,20 @@ class CJob
 	// Percentage of tasks completed
 	public var PROGRESS_TOTAL(default, null):Float;
 	
-	
 	// Task Generator
 	var taskgen:Void->CTask = null;	
+	
+	/** False to not Log Task related */
+	public static var FLAG_LOG_TASKS:Bool = true;
+	
+	// Helper, keep the time the job started
+	var timeStart:Float;
+	
+	// How long did the JOB take to complete
+	public var TIME_COMPLETE(default, null):Float = 0;
+	
+	// Used in fail logs
+	var fail_info:String = null;
 	//====================================================;
 	
 	public function new(?Sid:String,?TaskData:Dynamic) 
@@ -184,6 +196,7 @@ class CJob
 	
 	/**
 	   Adds a Task Generator to the top of the QUEUE
+	   - The TaskGenerator should return NULL if it is to stop.
 	**/
 	public function addTaskGen(fn:Void->CTask):CJob
 	{		
@@ -191,6 +204,7 @@ class CJob
 			taskgen = fn;
 			t.complete();
 		});
+		t.FLAG_PROGRESS_DISABLE = true;
 		
 		return add(t);
 	}//---------------------------------------------------;
@@ -279,6 +293,8 @@ class CJob
 		status = CJobStatus.init;
 		events.emit("jobStatus", status, this);
 		
+		timeStart = Timer.stamp();
+		
 		try{
 			init();
 		}catch (e:Error){
@@ -291,18 +307,18 @@ class CJob
 			return fail("No Tasks to run");
 		}
 		
-		if (TASKS_P_RATIO == 0) // No tracks report progress
-		{
-			LOG.log("No tracks reporting progress !!!", 2);
-			LOG.log("Progress WILL BE BROKEN", 2);
-		}
+		//if (TASKS_P_RATIO == 0) // No tracks report progress
+		//{
+			//LOG.log("No tracks reporting progress !!!", 2);
+			//LOG.log("Progress WILL BE BROKEN", 2);
+		//}
 		
 		// Fill in the slot array 
 		slots_active = [for (i in 0...MAX_CONCURRENT) false];
 		slots_progress = [for (i in 0...MAX_CONCURRENT) -1];
 		
 		// + Send start signal before init();
-		LOG.log('JOB START : $this');
+		LOG.log('JOB START : $this, Parallel:($MAX_CONCURRENT)');
 		status = CJobStatus.start;
 		events.emit("jobStatus", status, this);
 		
@@ -319,25 +335,24 @@ class CJob
 	   - When this is called, implies that a slot is open
 	   - If all complete, completes Job
 	**/
-	function feedQueue()
+	function feedQueue():Void
 	{
 		// Important, check for `taskgen` first
 		if (taskgen != null)
 		{
-			if (currentTasks.length < MAX_CONCURRENT)
+			if (currentTasks.length < MAX_CONCURRENT) // There are available slots
 			{
 				var t = taskgen();
-				if (t == null){ // Generator end
+				
+				if (t == null) {  // Generator END
 					taskgen = null;
-					return feedQueue();
+				}else{
+					t.async = true;
+					startNextTask(t);
 				}
-	
-				t.async = true;
-				startNextTask(t);
-				feedQueue();	// Must call this in order to run other generated in parallel
+				
+				return feedQueue();
 			}
-			
-			return;
 		}
 		
 		if (taskQueue.length > 0)
@@ -359,10 +374,13 @@ class CJob
 			
 		}else{
 			// Make sure there are no async tasks waiting to be completed
-			if (TASKS_COMPLETE == TASKS_TOTAL)
+			if (currentTasks.length == 0)
 			{
+				//if (status == CJobStatus.complete) return; // sometimes. bug?
+				
+				TIME_COMPLETE = Math.round((Timer.stamp() - timeStart) * 1000) / 1000;
 				// Job Complete
-				LOG.log('JOB COMPLETE : $this');
+				LOG.log('JOB COMPLETE : $this : Time:${TIME_COMPLETE}s');
 				status = CJobStatus.complete;
 				events.emit("jobStatus", status, this);
 				if (queueNext == null) {
@@ -410,15 +428,19 @@ class CJob
 		t.SLOT = fr;
 		TASKS_RUNNING ++;
 		
-		LOG.log('Task Start : ${t} | $this | Remaining (${taskQueue.length}), Running (${currentTasks.length})');
+		if (FLAG_LOG_TASKS)
+		LOG.log('Task Start : ${t} <-> $this : ' + (taskgen==null?'Remaining (${taskQueue.length}), Running (${currentTasks.length})':' {taskGen}'));
 
-		try{
-			t.start();
-		}catch (e:Error){
-			t.fail(e.message);
-		}catch (e:String){
-			t.fail(e);
-		}
+		// Avoids lockups with taskGen and Sync functions:
+		Timer.delay(()->{
+			try{
+				t.start();
+			}catch (e:Error){
+				t.fail(e.message);
+			}catch (e:String){
+				t.fail(e);
+			}
+		}, 1);
 	}//---------------------------------------------------;
 	
 	// End a task properly
@@ -448,22 +470,33 @@ class CJob
 	//-- Internal task status handler
 	function _onTaskStatus(s:CTaskStatus, t:CTask)
 	{
-		// Pass this through
+		// DEV: Update counters before sending to user, and before killing task
+		if (s == complete)
+		{
+			TASKS_COMPLETE++;
+			if (!t.FLAG_PROGRESS_DISABLE) TASKS_P_COMPLETE ++;
+		}
+		
 		events.emit("taskStatus", s, t);
 
 		switch(s)
 		{
 			case CTaskStatus.complete:
-				LOG.log('Task Complete : ' + t.toString());
+				
+				if (FLAG_LOG_TASKS)
+				{
+					var tc = Math.round((Timer.stamp() - t.timeStart) * 1000) / 1000;
+					LOG.log('Task Complete : $t, Time:${tc}s');
+				}
 				taskData = t.dataSend;
-				TASKS_COMPLETE++;
-				if (!t.FLAG_PROGRESS_DISABLE) TASKS_P_COMPLETE ++;
 				TASK_LAST = t;
-				events.emit("jobStatus", CJobStatus.taskEnd, this);
 				killTask(t);
 				
-				// NEW : Avoid filling up the callstack
-				Node.process.nextTick(feedQueue);
+				// In case some SYNC tasks complete when FAILED, don't proceed.
+				if (status == CJobStatus.fail) return;
+				events.emit("jobStatus", CJobStatus.taskEnd, this);
+				feedQueue();
+				
 
 			// TODO: I could report the progress on a timer
 			//		 This is not ideal if there are many tasks running at once (CPU wise)
@@ -475,7 +508,9 @@ class CJob
 				events.emit("jobStatus", CJobStatus.progress, this);
 			// --
 			case CTaskStatus.fail:
+				if (FLAG_LOG_TASKS)	
 				LOG.log('Task Fail : $t', 3);
+				fail_info = 'Task: $t';
 				killTask(t);
 				fail(t.ERROR);
 				
@@ -489,22 +524,32 @@ class CJob
 		
 	}//---------------------------------------------------;
 	
-	// Force fail the JOB and cancel all remaining tasks, or this is called when a Task Fails
+	// Force fail the JOB and cancel all rem aining tasks, or this is called when a Task Fails
 	function fail(msg:String = ""):CJob
 	{
+		if (status == CJobStatus.fail)
+		{
+			LOG.log('JOB FAIL Request: Already Failed : $this');
+			return this;
+		}
+		
 		ERROR = msg;
+		
 		LOG.log('JOB FAIL : $this');
-		LOG.log('         : ' + ERROR + "@" + HTool.getExStackThrownInfo());
+		if (fail_info != null)
+		LOG.log('    from : $fail_info');
+		LOG.log('   error : ' + ERROR + " : " + HTool.getExStackThrownInfo());
+		
+		taskgen = null; // Just in case it is active
 		
 		status = CJobStatus.fail;
 		events.emit("jobStatus", status, this);
 		
+		// DEV: keep kill() after sending job event, because it kills the listeners 
 		kill();
 		
-		// This could be still on a Task Stack
-		Node.process.nextTick(()->{
-			HTool.sCall(onFail);
-		});
+		// This could be still on a Task Stack, so clean the stack
+		HTool.tCall(onFail,ERROR);
 		
 		return this;
 	}//---------------------------------------------------;
