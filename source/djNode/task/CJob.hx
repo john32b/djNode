@@ -376,8 +376,6 @@ class CJob
 			// Make sure there are no async tasks waiting to be completed
 			if (currentTasks.length == 0)
 			{
-				//if (status == CJobStatus.complete) return; // sometimes. bug?
-				
 				TIME_COMPLETE = Math.round((Timer.stamp() - timeStart) * 1000) / 1000;
 				// Job Complete
 				LOG.log('JOB COMPLETE : $this : Time:${TIME_COMPLETE}s');
@@ -494,6 +492,10 @@ class CJob
 				
 				// In case some SYNC tasks complete when FAILED, don't proceed.
 				if (status == CJobStatus.fail) return;
+				if (status == CJobStatus.complete) {
+					LOG.log("WARNING - Task complete on an already completed CJOB | " + t);
+					return;
+				}
 				events.emit("jobStatus", CJobStatus.taskEnd, this);
 				feedQueue();
 				

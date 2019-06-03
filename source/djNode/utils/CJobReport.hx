@@ -42,9 +42,9 @@ class CJobReport
 	// are reporting progress at once. Limit to this time minimum.
 	public static var UPDATE_MIN_TIME:Float = 0.16;
 	// Bullets/Identifiers before writing job or task progress
-	public static var PREFIX_HED = '~yellow~>>~!fg~ ';
-	public static var PREFIX_ONE = '~cyan~==~!fg~ ';
-	public static var PREFIX_TWO = '~cyan~ >~!fg~ ';
+	public static var PREFIX_HED = '~yellow~>>~!.~ ';
+	public static var PREFIX_ONE = '~cyan~==~!.~ ';
+	public static var PREFIX_TWO = '~cyan~ >~!.~ ';
 	public static var PROGRESS_BAR_LEN = 32;
 	public static var PROGRESS_BAR_COL = "darkgreen";
 	
@@ -140,7 +140,7 @@ class CJobReport
 						var inf = j.info;
 						headerLen = j.info.length;
 						inf = ~/\[/.replace(inf, "~yellow~");
-						inf = ~/\]/.replace(inf, "~!fg~");
+						inf = ~/\]/.replace(inf, "~!.~");
 						T.printf(PREFIX_HED + inf).endl();
 					}else{
 						headerLen = j.sid.length;
@@ -188,7 +188,7 @@ class CJobReport
 				{
 					gotoTaskLine(t);
 					// First permanent line of a TASK DETAILED
-					T.printf(PREFIX_TWO + strname + ' ~darkgray~..~!fg~'); // <-- TASK PROGRESS FORMATTING
+					T.printf(PREFIX_TWO + strname + ' ~darkgray~..~!.~'); // <-- TASK PROGRESS FORMATTING
 					slotCursorJump[t.SLOT] = 7 + strname.length;
 					return;
 				}

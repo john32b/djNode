@@ -38,10 +38,10 @@ class ProgressBar
 		// -precalculate the color string, for speed
 		if (SYMBOLS[2] == null)
 		{
-			BaseApp.TERMINAL.print('$_s1$_s2\n');
+			BaseApp.TERMINAL.print('$_s1$_s2');
 		}else
 		{
-			BaseApp.TERMINAL.print(SYMBOLS[2] + '$_s1$_s2' + SYMBOLS[3]).endl();
+			BaseApp.TERMINAL.print(SYMBOLS[2] + '$_s1$_s2' + SYMBOLS[3]);
 		}
 	}//---------------------------------------------------;
 	

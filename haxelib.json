@@ -1,6 +1,6 @@
 {
 	"name": "djNode",
-	"description": "JohnDimi nodeJs Lib",
+	"description": "Helpers and Tools for nodejs CLI Apps",
 	"url" : "",
 	"license": "",
 	"tags": ["nodeJs"],
