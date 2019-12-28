@@ -48,7 +48,7 @@ import haxe.Timer;
 import js.Node;
 import js.node.Process;
 import js.node.events.EventEmitter;
-import js.Error;
+import js.lib.Error;
 
 enum CJobStatus
 {

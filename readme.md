@@ -1,6 +1,6 @@
 # `djNode` (haxe library)
 
-**Version:** 0.4  
+**Version:** 0.5  
 **Author:** John Dimi :computer:, <johndimi@outlook (.) com> *twitter*: [@jondmt](https://twitter.com/jondmt)  
 **Project Page and Sources:** [https://github.com/johndimi/djNode](https://github.com/johndimi/djNode)  **Language:** Haxe 4.0  
 **Requires:** hxnodejs , **Compiles to:** nodeJS code  

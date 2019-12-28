@@ -2,7 +2,7 @@ package djNode.utils;
 
 import djNode.Terminal;
 import djNode.tools.StrTool;
-import js.Error;
+import js.lib.Error;
 
 /**
  * Extra Print Functions
@@ -14,6 +14,8 @@ import js.Error;
 @:access(djNode.Terminal)
 class Print2 
 {
+	
+	public static final NO_NEWLINE = "@n";
 	
 	// Pointer to an initialized Terminal Object
 	var T:Terminal;
@@ -57,7 +59,7 @@ class Print2
 	/**
 	   Print Styled Text.
 	   - Puts Newline at the end
-	   - If string ends with `$$` then NO NEWLINE
+	   - If string ends with `@n` then NO NEWLINE
 	   Make sure you set some styles with style(..);
 	   examples:
 	      prints( "id:{0}  title:{1:10} | end ", ["001", "Entry name one"] ) =>
@@ -74,6 +76,12 @@ class Print2
 		var c:Int = 0;
 		var r = ~/\{(-?\d+):?(-?\d+)?\}/g;
 		var B:Array<String> = [];
+
+		var nl:Bool = true;
+		if (str.substr( -2) == NO_NEWLINE) {
+			str = str.substr(0, -2);
+			nl = false;
+		}
 
 		var _col = r.map(str, (r1)->
 		{
@@ -102,8 +110,9 @@ class Print2
 			f += Terminal._RESET_ALL;
 			return T.sprintf(f);
 		});
-		
-		T.print(g_leftpad  + _col + '\n');
+	
+		T.print(g_leftpad  + _col);
+		if(nl) T.endl();
 		
 		var i = 0;
 		return r.map(str, r->B[i++]); // Create and return the no color string
@@ -112,9 +121,9 @@ class Print2
 	/**
 	    Another markup syntax
 		- Puts Newline at the end
-		- If string ends with `$$` then NO NEWLINE
+		- If string ends with `@n` then NO NEWLINE
 		- Styles need to be set
-		- Produces and returns non-colorized string
+		- Produces and returns the non-colorized string (useful for logging)
 		e.g.
 		print2('|1|Extracting| File into |2|folder|');
 	**/
@@ -123,7 +132,7 @@ class Print2
 		var r = ~/\|(\d+\|.+?)\|/g;
 		var A:Array<String> = [];
 		var nl:Bool = true;
-		if (str.substr( -2) == "$$") {
+		if (str.substr( -2) == NO_NEWLINE) {
 			str = str.substr(0, -2);
 			nl = false;
 		}
@@ -146,8 +155,9 @@ class Print2
 			return _ret;
 		});
 		
-		T.print('$_col\n');
-		
+		T.print(_col);
+		if(nl) T.endl();
+				
 		var i = 0;
 		return r.map(str, r->A[i++]); // Create and return the no color string
 	}//---------------------------------------------------;

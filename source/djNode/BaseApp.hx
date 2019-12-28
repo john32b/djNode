@@ -31,7 +31,7 @@
 package djNode;
 
 import haxe.CallStack;
-import js.Error;
+import js.lib.Error;
 import js.Node;
 import js.node.Path;
 

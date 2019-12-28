@@ -7,7 +7,7 @@
  ========================================================*/
 package djNode.tools;
 
-import js.Error;
+import js.lib.Error;
 import js.Node;
 import js.node.Buffer;
 import js.node.Crypto;

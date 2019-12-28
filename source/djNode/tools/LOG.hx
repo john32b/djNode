@@ -29,7 +29,7 @@ package djNode.tools;
 
 import haxe.Log;
 import haxe.PosInfos;
-import js.Error;
+import js.lib.Error;
 import js.Node;
 import js.node.Fs;
 import js.node.Path;

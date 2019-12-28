@@ -10,6 +10,8 @@
 
 package djNode;
 
+import js.node.Fs;
+import js.node.Buffer;
 import js.Node;
 import js.node.stream.Readable.IReadable;
 
@@ -161,7 +163,7 @@ class Keyboard
 	
 	/**
 	   Start Capturing input from the STDIN
-	   @param	realtime If true will callback every keystroke, false for word by word
+	   @param	realtime If true will callback every keystroke, False to callback on Enter
 	**/
 	public static function startCapture(realtime:Bool = true, callback:String->Void = null)
 	{
@@ -210,5 +212,32 @@ class Keyboard
 		stdin.pause();
 		stdin.resume();
 	}//---------------------------------------------------;
+
+
+	/**
+		Halt program and read keyboard Line (enter key)
+		WARNING! Line input has a maximum size!
+				 need to update code to support more bytes.
+		HELP FROM: https://stackoverflow.com/a/16048083/3866278
+	**/
+	public static function readOnceSync():String
+	{
+		var SIZE = 512;
+		var b = Buffer.alloc(SIZE);
+		var bytesin:Int = 0;
+		// while (true) {
+			bytesin = 0;
+			try{
+				bytesin = Fs.readSync(untyped(Node.process.stdin.fd),b,0,SIZE,null);
+			}catch(e:Dynamic){
+				trace(e);
+				// if(e.code == "EOF") break;
+				throw e;
+			}	
+			// if(bytesin==0) break;
+		// }
+		return b.toString("utf8",0,bytesin-2); // -2 to remove the last keystroke
+	}//---------------------------------------------------;
+
 
 }//-- end --

@@ -71,16 +71,14 @@ class UserAsk
 	}//---------------------------------------------------;
 	
 	
-	
-	
 	/**
 	 * Presents a (Y/N) at current terminal place and awaits for user input
 	 * --no newline at start--
 	 * --no newline at end--
-	 * @param	callback True for YES, False for No
+	 * @param	callback True for YES, False for No. If <null> will hold program and be SYNC
 	 * @param	question Custom Question, will not be printed if ommited
 	 */
-	public static function yesNo(callback:Bool->Void, ?question:String):Void
+	public static function yesNo(?callback:Bool->Void, ?question:String):Bool
 	{
 		var t = BaseApp.TERMINAL;
 		if (question != null) {
@@ -89,17 +87,39 @@ class UserAsk
 		}
 		t.fg(Color.yellow);
 		t.print(' (Y/N) : ');
-		Keyboard.onData = function(k:String) {
-		if (k.toLowerCase() == "y") {
-			t.fg(Color.green).print("Y").reset();
-			Keyboard.stop();
-			callback(true);
-		}else if (k.toLowerCase() == "n") {
-			t.fg(Color.red).print("N").reset();
-			Keyboard.stop();
-			callback(false);
-		}};
-		Keyboard.startCapture(true);
+
+		if(callback!=null) 
+		{
+			Keyboard.onData = function(k:String) {
+				if (k.toLowerCase() == "y") {
+					t.fg(Color.green).print("Y").reset();
+					Keyboard.stop();
+					callback(true);
+				}else if (k.toLowerCase() == "n") {
+					t.fg(Color.red).print("N").reset();
+					Keyboard.stop();
+					callback(false);
+				}};
+			Keyboard.startCapture(true);
+			}
+		else {
+			// There is a bug in default windows terminal
+			// Use t.restorepos() then t.up() to align the cursor
+			t.savePos();
+			var r = "";
+			while(r=="") {
+				r = Keyboard.readOnceSync();
+				trace("len" , r.length,r);
+				r = r.toLowerCase();
+				if(r.length==1){
+					if(r.charAt(0)=="y") return true; else
+					if(r.charAt(0)=="n") return false;
+				}
+				r="";	// capture again
+				t.restorePos().clearLine(0);
+			}
+		}
+		return false; 
 	}//---------------------------------------------------;
 	
 }//-- end class --//

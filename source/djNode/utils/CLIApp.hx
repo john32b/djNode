@@ -15,7 +15,7 @@ package djNode.utils;
 
 import djNode.tools.HTool;
 import djNode.tools.LOG;
-import js.Error;
+import js.lib.Error;
 import js.Node;
 import js.node.ChildProcess;
 import js.node.Path;
