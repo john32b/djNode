@@ -1,10 +1,9 @@
  /**--------------------------------------------------------
- * FileTool
+ * FileTool.hx 
  * @author: johndimi, <johndimi@outlook.com>
- * --------------------------------------------------------
- * - Various Helpers for File and Path operations
- * 
+ * Various Helpers for File and Path operations
  ========================================================*/
+ 
 package djNode.tools;
 
 import js.lib.Error;

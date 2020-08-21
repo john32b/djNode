@@ -9,9 +9,8 @@
  * ===========
  * . Printing text
  * . Text and Background Colors
- * . Easy Formatted Text with custom Tags
  * . Manipulating the cursor
- * . Colors in Windows and Linux terminals,
+ * . Colors in Windows and Linux terminals
  * . Clearing portions of the terminal
  * 
  * Notes:
@@ -45,10 +44,6 @@ package djNode;
 
 import StringTools;
 
-#if debug
-  import djNode.tools.LOG;
-#end
-
 #if cs 
   import cs.system.Console;
   import cs.system.ConsoleColor;
@@ -61,37 +56,36 @@ import StringTools;
 #end
 
 
-/*
- * Supported Terminal colors
- **/
-@:enum
-abstract Color(String) from String to String
+enum TColor
 {
-	var black = "black";	var white = "white";
-	var gray = "gray"; 		var darkgray = "darkgray";
-	var red = "red"; 		var darkred = "darkred";
-	var green = "green"; 	var darkgreen = "darkgreen";
-	var blue = "blue"; 		var darkblue = "darkblue";
-	var yellow = "yellow"; 	var darkyellow = "darkyellow";
-	var cyan = "cyan"; 		var darkcyan = "darkcyan";
-	var magenta = "magenta"; var darkmagenta = "darkmagenta";	
-}//---------------------------------------------------;
+	black;
+	white;
+	gray;
+	red;
+	green;
+	blue;
+	yellow;
+	cyan;
+	magenta;
+	darkgray;
+	darkred;
+	darkgreen;
+	darkblue;
+	darkyellow;
+	darkcyan;
+	darkmagenta;
+}
 
 @:dce
 class Terminal
 {
-	
-	//====================================================;
-	// VARS
-	//====================================================;
-
-	// Map colors to escape codes
-	var COLORS_FG:Map<Color,String>;
-	var COLORS_BG:Map<Color,String>;	
+	// ColorEnum => Actual EscapeCode
+	var COLORS_FG:Map<TColor,String>;
+	var COLORS_BG:Map<TColor,String>;
 	
 	// The escape Sequence can also be '\033[', or even '\e[' in linux ''
 	// I am not using the escape sequence as a reference anywhere, as hard typing is faster.
-	static inline var ESCAPE_SEQ 	= '\x1B['; 	
+	static inline var _ESC_SEQ 		= '\x1B['; 	
 	static inline var _BOLD 		= '\x1B[1m';
 	static inline var _DIM 			= '\x1B[2m';
 	static inline var _UNDERL		= '\x1B[4m';
@@ -107,27 +101,11 @@ class Terminal
 	static inline var _RESET_BLINK	= '\x1B[25m';
 	static inline var _RESET_HIDDEN	= '\x1B[28m';
 	
-	// Hold all the available colors.
-	static var AVAIL_COLORS:Array<String> = [ 
-		Color.black, Color.white, Color.gray, Color.darkgray,
-		Color.red, Color.darkred, Color.green, Color.darkgreen,
-		Color.blue, Color.darkblue, Color.cyan, Color.darkcyan,
-		Color.magenta, Color.darkmagenta, Color.yellow, Color.darkyellow
-	];
+	/** If true the function `parseTags` `ptag`, will fillout `PARSED_NOTAG` which is an untagged parse */
+	public var ENABLE_NOTAG:Bool = true;
 	
-	//---------------------------------------------------;
-	// -- User overridable
-	//---------------------------------------------------;
-	
-	// Used in the sprintf() and printLine() , User can modify these.
-	public static var DEFAULT_LINE_WIDTH:Int     = 50;
-	public static var DEFAULT_LINE_SYMBOL:String = "-";
-	
-	// Used in H1...3() and list()
-	public static var LIST_SYMBOL:String	=	"*";
-	public static var H1_SYMBOL:String		=	"#";
-	public static var H2_SYMBOL:String		=	"+";
-	public static var H3_SYMBOL:String		=	"=";
+	/** Holds the last parseTags() Operation but without any tags. Useful for logging. Needs ENABLE_NOTAG */
+	public var PARSED_NOTAG(default, null):String = "";
 	
 	//====================================================;
 	// FUNCTIONS
@@ -135,82 +113,50 @@ class Terminal
 	
 	public function new() 
 	{
-		// Set the foregrounds
 		COLORS_FG = [
-			Color.darkgray => 	'\x1B[90m',
-			Color.red => 		'\x1B[91m',
-			Color.green => 		'\x1B[92m',
-			Color.yellow => 	'\x1B[93m',
-			Color.blue => 		'\x1B[94m',
-			Color.magenta => 	'\x1B[95m',
-			Color.cyan => 		'\x1B[96m',
-			Color.white => 		'\x1B[97m',
-			Color.black => 		'\x1B[30m',
-			Color.darkred => 	'\x1B[31m',
-			Color.darkgreen => 	'\x1B[32m',
-			Color.darkyellow => '\x1B[33m',
-			Color.darkblue => 	'\x1B[34m',
-			Color.darkmagenta=> '\x1B[35m',
-			Color.darkcyan => 	'\x1B[36m',
-			Color.gray => 		'\x1B[37m'
+			darkgray => 	'\x1B[90m',
+			red => 			'\x1B[91m',
+			green => 		'\x1B[92m',
+			yellow => 		'\x1B[93m',
+			blue => 		'\x1B[94m',
+			magenta => 		'\x1B[95m',
+			cyan => 		'\x1B[96m',
+			white => 		'\x1B[97m',
+			black => 		'\x1B[30m',
+			darkred => 		'\x1B[31m',
+			darkgreen => 	'\x1B[32m',
+			darkyellow => 	'\x1B[33m',
+			darkblue => 	'\x1B[34m',
+			darkmagenta=> 	'\x1B[35m',
+			darkcyan => 	'\x1B[36m',
+			gray => 		'\x1B[37m'
 		];
 		
-		//- Set the backgrounds
 		COLORS_BG = [
-			Color.darkgray => 	'\x1B[100m',
-			Color.red =>		'\x1B[101m',
-			Color.green =>		'\x1B[102m',
-			Color.yellow =>		'\x1B[103m',
-			Color.blue =>		'\x1B[104m',
-			Color.magenta =>	'\x1B[105m',
-			Color.cyan =>		'\x1B[106m',
-			Color.white => 		'\x1B[107m',
-			Color.black =>		'\x1B[40m',
-			Color.darkred => 	'\x1B[41m',
-			Color.darkgreen =>	'\x1B[42m',
-			Color.darkyellow => '\x1B[43m',
-			Color.darkblue => 	'\x1B[44m',
-			Color.darkmagenta=> '\x1B[45m',
-			Color.darkcyan => 	'\x1B[46m',
-			Color.gray => 		'\x1B[47m'
+			darkgray => 	'\x1B[100m',
+			red =>			'\x1B[101m',
+			green =>		'\x1B[102m',
+			yellow =>		'\x1B[103m',
+			blue =>			'\x1B[104m',
+			magenta =>		'\x1B[105m',
+			cyan =>			'\x1B[106m',
+			white => 		'\x1B[107m',
+			black =>		'\x1B[40m',
+			darkred => 		'\x1B[41m',
+			darkgreen =>	'\x1B[42m',
+			darkyellow => 	'\x1B[43m',
+			darkblue => 	'\x1B[44m',
+			darkmagenta=> 	'\x1B[45m',
+			darkcyan => 	'\x1B[46m',
+			gray => 		'\x1B[47m'
 		];
 	
 	}//---------------------------------------------------;
-	
-
-	/**
-	 * Demo all available colors on the stdout.
-	 * WARNING: Will erase the terminal
-	 */
-	public function demoPrintColors():Void
-	{
-		var distanceBetweenColumns = 15;
-		println("Available Colors").drawLine();
-		
-		//-- Draw the foreground colors
-		for (i in AVAIL_COLORS) {
-			if (i == Color.black) bg(Color.gray); else bg(Color.black);
-			fg(i).print(i).endl().resetFg();
-		}
-		
-		moveR(0, -AVAIL_COLORS.length);
-	
-		//-- Draw the background colors:
-		for (i in AVAIL_COLORS) {
-			forward(distanceBetweenColumns);
-			if (i == Color.white || i == Color.yellow) fg(Color.darkgray); else fg(Color.white);
-			bg(i).print(i).endl().resetBg();
-		}
-		
-		drawLine();
-	}//---------------------------------------------------;
-	
 	
 	/**
 	   Resize the Terminal Window,
 	   - Not all terminals are resizable
 	   - Window default 'cmd' is resizable OK
-	   - 
 	**/
 	public function resizeTerminal(w:Int, h:Int)
 	{
@@ -260,7 +206,6 @@ class Terminal
 	public inline function print(str:String):Terminal
 	{
 		//Sys.print(str);
-		
 		#if js
 			Node.process.stdout.write(str);
 		#elseif cpp
@@ -274,19 +219,18 @@ class Terminal
 	
 	/**
 	 * Writes to the terminal, then changes line, unformatted
-	 * todo: Do I really need this?
+	 * DEV: Do I really need this?
 	 */
 	public inline function println(str:String):Terminal
 	{
-		print(str + "\n");
-		return this;
+		return print(str + "\n");
 	}//---------------------------------------------------;
 	
 	/**
 	 * Sets the color of the cursor (Foreground color)
 	 * @param col, If this is null, the FG is being reset.
 	 */
-	public function fg(?col:Color):Terminal
+	public function fg(?col:TColor):Terminal
 	{
 		if (col == null) return resetFg();
 		return print(COLORS_FG.get(col));
@@ -296,7 +240,7 @@ class Terminal
 	 * Sets the color of the background
 	 * @param col, If this is null, the BG is being reset.
 	 */
-	public function bg(?col:Color):Terminal
+	public function bg(?col:TColor):Terminal
 	{
 		if (col == null) return resetBg();
 		return print(COLORS_BG.get(col));
@@ -369,10 +313,10 @@ class Terminal
 		#else
 		
 			var c = '';
-			if (x < 0) c += ESCAPE_SEQ + ( -x) + 'D';
-			else if (x > 0) c += ESCAPE_SEQ + ( x ) + 'C';	
-			if (y < 0) c += ESCAPE_SEQ + ( -y) + 'A';
-			else if (y > 0) c += ESCAPE_SEQ + ( y) + 'B';
+			if (x < 0) c += _ESC_SEQ + ( -x) + 'D';
+			else if (x > 0) c += _ESC_SEQ + ( x ) + 'C';	
+			if (y < 0) c += _ESC_SEQ + ( -y) + 'A';
+			else if (y > 0) c += _ESC_SEQ + ( y) + 'B';
 			print(c);
 
 		#end
@@ -465,71 +409,6 @@ class Terminal
 		#end
 	}//---------------------------------------------------;
 	
-	//====================================================;
-	// STYLING
-	//====================================================;
-	
-	/**
-	 * Prints a horizontal line in current place
-	 * The line has a default width of 40 chars
-	 * NewLine at the end.
-	 * @param symbol optional custom symbol
-	 * @param length optional custom length
-	 */
-	public function drawLine(?symbol:String, ?length:Int):Terminal 
-	{
-		if (symbol == null) symbol = DEFAULT_LINE_SYMBOL;
-		if (length == null) length = DEFAULT_LINE_WIDTH;
-		return print(StringTools.lpad("", symbol, length)).endl();
-	}//---------------------------------------------------;
-	
-	/**
-	 * Write a text with Header 1 formatting
-	 * @param text
-	 */
-	public function H1(text:String, color:String = "darkmagenta")
-	{		
-		printf('~black~~:$color~ $H1_SYMBOL~white~ $text ~!~\n~line~');
-	}//---------------------------------------------------;
-	
-	/**
-	 * Write a text with Header 2 styling
-	 * @param text
-	 */
-	public function H2(text:String, color:String = "cyan")
-	{
-		printf(' ~:$color~~black~$H2_SYMBOL~!~ ~$color~$text~!~\n ~line2~');
-	}//---------------------------------------------------;
-	
-	/**
-	 * Write a text with Header 2 styling
-	 * @param text
-	 */
-	public function H3(text:String, color:String = "blue")
-	{
-		printf('~$color~ $H3_SYMBOL ~!~$text\n ~line2~');
-	}//---------------------------------------------------;
-	
-	/**
-	 * Add a list styled element
-	 * @param text The label to add
-	 */
-	public function list(text:String, color:String = "green")
-	{
-		printf('~$color~  $LIST_SYMBOL ~!~$text\n');
-	}//---------------------------------------------------;
-	
-	/**
-	 * Print formatted text,
-	 * Check sprintf() for rules
-	 */
-	public inline function printf(str:String):Terminal
-	{
-		return print(sprintf(str));
-	}//---------------------------------------------------;
-	
-
-	
 	public function cursorHide():Terminal
 	{
 		return print("\x1B[?25l");
@@ -539,57 +418,92 @@ class Terminal
 		return print("\x1B[?25h");
 	}//---------------------------------------------------;
 	
+	
 	/**
-	 * Translates Special inline Tags to Special terminal codes and strings
-	 * Returns the new translated string. Useful to adding color codes.
-	 * 
-	 * Tags:
-	 * 	~!~			; Reset ALL
-	 *  ~!.~		; Reset Foreground color
-	 *  ~!:~		; Reset background color
-	 *  ~line~		; Prints a Line
-	 *  ~line2~		; Prints a Line Style 2
-	 *  ~b~			; Bold
-	 *  ~!b~		; Reset Bold
-	 *  ~COLOR~		; where COLOR is a valid COLOR name	; Foreground Color
-	 *  ~=COLOR~ 	; where COLOR is a valid COLOR name ; Background Color
-	 * 
-	 * Examples:
-	 * "~yellow~This is yellow. ~red~And this is red~!~"
-	 * "~line~\nText\n~line~"
-	 * 
-	 */
-	public function sprintf(str:String):String
+	   Print Tags. Small function name (pt)
+	   Print a tagged string to the Terminal
+	   @param	s
+	   @return
+	**/
+	public function ptag(s:String):Terminal
 	{
-		// Match anything between ~ ~
-		return(~/~(\S[^~]*)~/g.map(str, function(reg) {
-			var s:String = reg.matched(1);
-			switch(s) {
-			case "!"	: return _RESET_ALL;
-			case "!."	: return _RESET_FG;
-			case "!:"	: return _RESET_BG;
-			case "b"	: return _BOLD;
-			case "!b"	: return _RESET_BOLD;
-			case "line":  return StringTools.lpad("", DEFAULT_LINE_SYMBOL, DEFAULT_LINE_WIDTH) + "\n";
-			case "line2": return StringTools.lpad("", DEFAULT_LINE_SYMBOL, Math.ceil(DEFAULT_LINE_WIDTH / 2)) + "\n";
-			
-			// Proceed checking for colors or bg colors:
-			default :
-			try{
-			 if (s.charAt(0) == ":")
-				return COLORS_BG.get(s.substr(1));
-			 else 
-				return COLORS_FG.get(s);
-			 }catch (e:Dynamic) {
-				// Error getting the color, user must have typoed.
-				return "";
-				#if debug
-				LOG.log("Parse error, check for typos, str=" + str, 2);
-				#end
-			 }
-			}//end switch
-		}));
+		return print(parseTags(s));
 	}//---------------------------------------------------;
 	
-
+	
+	
+	/**
+	   Convert a special formatted String to a new string with the escape codes built in.
+	   Tags are in the form of <tag> there are no end-tags.
+	   
+	   Valid tags are:
+	   ---------------
+	   <color> = Set foreground color : Check TColor enum
+	   <:color = Set background color : Check TColor enum
+	   <!> = Reset All
+	   <!fg> = Reset foreground color
+	   <!bg> = Reset background color
+	   <bold> = Set Bold  <!bold> = Reset Bold
+	   <dim> = Set Dimmed Text <!dim> = Reset Dimmed Text
+	   <underl> = Set Underling <!underl> = Reset Underline
+	   <blink> = Set Blink Text <!blink> = Reset Blin Text
+	   
+	   ---------------
+	   You can put multiple tags inside a < >, separate with comma.
+			e.g. "<red,bg:white,bold>This is red text with white bg<!>"
+	
+	**/
+	public function parseTags(str:String):String
+	{
+		// Capture <not whitespace>
+		var res = ~/<(\S+?)>/g.map(str, (reg)->{
+			var src:String = reg.matched(1);
+			var prop:Array<String> = src.split(','); // All Tag Properties e.g. ['red','bg:white']
+			var ret:String = ""; 	// The compiled string to replace the tag
+			for (p in prop) {
+				ret += switch(p) {
+					case "!" : _RESET_ALL;
+					case "!fg" : _RESET_FG;
+					case "!bg" : _RESET_BG;
+					case "bold" : _BOLD;
+					case "blink" : _BLINK;
+					case "dim"	: _DIM;
+					case "underl" : _UNDERL;
+					case "!bold" : _RESET_BOLD;
+					case "!dim" : _RESET_DIM;
+					case "!blink" : _RESET_BLINK;
+					case "!underl" : _RESET_UNDERL;
+					default : 
+						// Check BG
+						if (p.indexOf(':') == 0) {
+							try{
+								COLORS_BG.get(TColor.createByName(p.split(':')[1]));
+							}catch (_){
+								throw 'Tag Error: Color does not exist in `$src`';
+								'(X)';
+							}
+						}else{
+						// Check Col
+							try{
+								COLORS_FG.get(TColor.createByName(p));
+							}catch (e:Dynamic){
+								//throw 'Tag Error: `$src`';
+								//'(X)';
+								// Or should I just pass p; as normal text
+								reg.matched(0);
+							}
+						}
+				}//- switch
+			}//- for loop
+			return ret;
+		});
+		
+		// Keep the uncolored string
+		if (ENABLE_NOTAG){
+			PARSED_NOTAG = ~/<(\S+?)>/g.map(str, (reg)->"");
+		}
+		return res;
+	}//---------------------------------------------------;	
+	
+	
 }//-- end class--//

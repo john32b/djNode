@@ -12,6 +12,7 @@ package djNode;
 import djNode.Terminal;
 
 
+@:dce
 class Graphics
 {
 	static var _isInited(default,null):Bool = false;

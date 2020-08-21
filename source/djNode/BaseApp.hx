@@ -16,10 +16,6 @@
  * 
  * 	- Override init() and set ARGS and PROGRAM_INFO there
  * 
- * Examples:
- * ------------
- * 
- * 
  * 
  * Changes since last ver:
  * ----------------
@@ -27,9 +23,18 @@
  *  - NEW: FLAG_USE_SLASH_FOR_OPTION, Can set this on init()
  *         Help will require `/?` or `-help` depending 
  * 
+ * 
+ * 
+ * TIPS
+ * ------------------
+ * 		Node.__dirname	- Directory of the running script
+ * 
+ *
+ * 
  ========================================================*/
 package djNode;
 
+import djA.StrT;
 import haxe.CallStack;
 import js.lib.Error;
 import js.Node;
@@ -46,6 +51,9 @@ class BaseApp
 	// Keep one terminal object for the entire app.
 	// All other classes should link to this one, instead of creating new terminals.
 	public static var TERMINAL(default, null):Terminal;
+
+	// Default line length, used in printhelp and exiterror
+	inline static var LINE_LEN = 40;
 	
 	// Spacing formatter on the help screen
 	// Aligns the Description of Options,Actions to this many chars from the left 
@@ -77,11 +85,10 @@ class BaseApp
 	// #USERSET
 	// Fill this object up, (Check the typedef "AppArguments" for more info)
 	var ARGS:AppArguments = {
-		inputRule:"opt",
-		outputRule:"opt",
+		inputRule:"no",
+		outputRule:"no",
 		requireAction:false,
 		supportWildcards:true,
-		supportStrayArgs:false,	// Not Implemented
 		helpInput:null,
 		helpOutput:null,
 		helpText:null,
@@ -95,7 +102,7 @@ class BaseApp
 	var argsInput:Array<String> = [];
 	
 	// Holds argument Output <string> can be file or folder etc
-	// Same as argsOptions.o
+	// Same as `argsOptions.o`
 	var argsOutput:String = null;
 	
 	// Holds all argument <options>
@@ -122,8 +129,6 @@ class BaseApp
 		LOG.init();
 		TERMINAL = new Terminal();
 		T = TERMINAL;
-
-		#if nodejs
 		
 		// Normal Exit, code 0 is OK, other is Error
 		Node.process.once("exit", function(code) {
@@ -143,7 +148,6 @@ class BaseApp
 			exitError(e);
 		});
 		
-		#end
 
 		// -- Start --
 		try{
@@ -154,8 +158,8 @@ class BaseApp
 			exitError(e, true); // this will also exit
 		}
 		
-		// -- Log Arguments Got
-		
+		// -- Log Parameters
+		// --------------------
 		LOG.log('- Inputs : ' + argsInput.join(', '));
 		LOG.log('- Output : ' + argsOutput);
 		LOG.log('- Action  set : ' + argsAction);
@@ -163,7 +167,7 @@ class BaseApp
 		for (o in Reflect.fields(argsOptions)) {
 			LOG.log('\t\t' + o + ' : ' + Reflect.getProperty(argsOptions, o));
 		}
-		LOG.log('-------------');
+		LOG.log(StrT.line(LINE_LEN));
 		
 		// Clear the CallStack
 		Node.process.nextTick(onStart);
@@ -184,16 +188,21 @@ class BaseApp
 		// HACK, Push the output parameter now.
 		//  - Why: Have the 'ARGS.Options' object empty when user adds parameters in it
 		//  - NOTE: '-output' the dash makes it not appear in help
-		ARGS.Options.unshift(['o', "-output", "", "yes"]);
+		ARGS.Options.unshift(['o', "-output", "yes"]);
 		
 		// -- Shortcuts
 		var P = PROGRAM_INFO;
 		var A = ARGS;
 		
+		if (P.executable == null)
+		{
+			P.executable = Path.basename(Node.__filename);
+		}
+		
 		LOG.log('Creating Application [ ${P.name} ,v${P.version} ]');
 		
 		// -- Read Arguments ::
-		var cc:Int = 0;
+		var cc = 0;
 		var arguments = Sys.args();
 		var arg:String;
 		while ( (arg = arguments[cc++]) != null)
@@ -201,13 +210,12 @@ class BaseApp
 			// # <option>, options start with `-` or `/`
 			if (arg.charAt(0) == _sb[0])
 			{
-				// :: Build In <options> 
-				if (arg.toLowerCase().indexOf(_sb[1]) == 1)
+				if (arg.toLowerCase().indexOf(_sb[1]) == 1) // '--help' or '/?'
 					throw 'HELP';
 				
 				var o = getArgOption(arg.substr(1));
 				if (o == null) throw 'Illegal argument [$arg]';
-				if (o[3] != null) { // Requires Parameter
+				if (o[2] != null) { // Requires Parameter
 					var nextArg:String = arguments[cc++];	
 					if (nextArg == null || getArgOption(nextArg) != null) {
 						throw 'Argument [$arg] requires a parameter';
@@ -229,7 +237,7 @@ class BaseApp
 				continue;
 			}
 			
-			// # <input>
+			// # [input]
 			// -- Whatever isn't an <action> or <option> is an input
 			argsInput.push(arg);
 			
@@ -286,7 +294,7 @@ class BaseApp
 		
 		// - Make options not set to fields with `false` for quick look up
 		for (o in ARGS.Options) {
-			if (o[3] == null) { // Option not expecting argument
+			if (o[2] == null) { // Option not expecting argument
 				if (!Reflect.hasField(argsOptions, o[0])) {
 					Reflect.setField(argsOptions, o[0], false);
 				}
@@ -317,148 +325,104 @@ class BaseApp
 	
 	
 	/**
-	   Automatically call the matching function of an action
-	   - You need to define the function in the extended class
-	   - Function name = "action_" + Action
-	   @param p If TRUE will print some info on the action 
-	**/	
-	function autoCallAction(p:Bool = false)
-	{
-		var fn = Reflect.field(this, "action_" + argsAction);
-		if (fn != null && Reflect.isFunction(fn))
-		{
-			if(p) T.printf('~yellow~+ ~!~Action <~yellow~' + getArgAction(argsAction)[1] + '~!~>\n');
-			return Reflect.callMethod(this, fn, []);
-		}
-		return null;
-	}//---------------------------------------------------;
-	
-	
-	/**
-	 * Awaits any key and then exits the program
-	 * Useful for preventing terminals from auto-closing.
-	 */
-	function waitKeyQuit():Void 
-	{
-		T.fg(Color.darkgray).endl().println("Press any key to quit.");
-		T.reset();
-		Keyboard.startCapture(true, function(e:String) { Sys.exit(0); });
-	}//---------------------------------------------------;
-	
-	/**
 		Shows Basic program usage.
 		Autogenerated based on `ARGS` object
 		-- Example Output , goto [A0001]
 	**/
 	function printHelp()
 	{
-		var sp = function(s){return StringTools.lpad("", " ", s); }	
-		
 		var A = ARGS; var P = PROGRAM_INFO;
+		// > Quick Create blank space
+		var sp = (s)->StrT.rep(s, " "); 
+		// >
+		var __getInfoRule = (rule:String) -> {
+			return (rule == "opt"?"is optional.":"is required.");
+		};
 		
-		// -- Some Local Functions ::
 		
-			function __getInfoRule(rule:String):String {
-				return(rule == "opt"?"is optional.":"is required.");
-			}//----------------------------------
-			function __fixDescFormat(s:String):String{
-				if (s != null && s.length > 0){
-					return ~/(\n)/g.replace(s, '\n ' + sp(HELP_MARGIN));
-				}else{
-					return "...";
-				}
-			}//----------------------------------
+		// > Description string, apply padding to linebreaks
+		// > Add the string (b) at the end of the FIRST line 
+		var __fixDescFormat = (s:String, b:String) -> {
+			var S = StrT.isEmpty(s)?"...":(~/(\n)/g.replace(s, '\n ' + sp(HELP_MARGIN)));
+			var g = S.split('\n');
+			g[0] += b;
+			return g.join('\n');
+		};
 			
-		// -- Prepare some things to be printed ::
-		
-			// -- Modify some fields to correct spacings
-			if (A.helpInput != null){
-				A.helpInput = "~gray~\t " + ~/(\n)/g.replace(A.helpInput, "\n\t ");
-			}
-			if (A.helpOutput != null){
-				A.helpOutput = "~gray~\t " + ~/(\n)/g.replace(A.helpOutput, "\n\t ");
-			}
-		
-			
-			// - Fix <action> and <option> descriptions
-			for (a in A.Actions) a[2] = __fixDescFormat(a[2]);
-			for (a in A.Options) a[2] = __fixDescFormat(a[2]);
-			
-		
-		// -- Start Printing ::
-		
-		T.printf(' ~green~Program Usage: ~white~ \n');
-		
-		if (P.executable == null) P.executable = "app.js";
-		var s:String = '   ${P.executable} ';
+		// -- Program usage
+		// -----------------------------
+		T.ptag('<green> Program Usage:\n');
+		var s = '   ${P.executable} ';
 		if (A.Actions.length > 0) 	s += "<action> ";
-		if (A.Options.length > 0) 	s += _sb[0] + "<option> <parameter> ...\n      ";
+		if (A.Options.length > 1) 	s += "[<options>...] ";
 		if (A.inputRule != "no") {
-			s += "<input> ";
-			if (A.inputRule == "multi") s += "... ";
+			s += (A.inputRule == "multi"?"[<inputs>...] ":"<input> ");
 		}
-		if (A.outputRule != "no"){
+		if (A.outputRule != "no") {
 			s += _sb[0] + "o <output> ";
 		}
+		T.ptag('<bold,white>$s<!>\n').fg(darkgray).println(StrT.line(LINE_LEN));
 		
-		
-		T.print(s).endl().printf("~darkgray~ ~line2~");
-		
-		// -- 
-		var _pp = false;
+		// -- Print Input/Output Help --
+		// -----------------------------
+		var _pp = false; // Did it print anything
 		if (A.inputRule != "no") {
 			_pp = true;
-			T.printf('~yellow~ <input> ~!~'); 
-			T.print(__getInfoRule(A.inputRule));
-			if (A.inputRule == "multi") T.printf("~darkcyan~ <multiple supported>");
+			T.ptag('<yellow> [input] <!>'); T.print(__getInfoRule(A.inputRule));
+			if (A.inputRule == "multi") T.ptag("<darkgray> (multiple supported)");
 			T.endl();
-			if (A.helpInput != null) T.printf(A.helpInput).endl();
+			if (A.helpInput != null) {
+				A.helpInput = "<gray>\t " + ~/(\n)/g.replace(A.helpInput, "\n\t "); // append tab to newlines
+				T.ptag(A.helpInput).endl();
+			}
 		}
 		// --
 		if (A.outputRule != "no") {
 			_pp = true;
-			T.printf('~yellow~ <output> ~!~'); T.print(__getInfoRule(A.outputRule)).endl();
-			if (A.helpOutput != null) T.printf(A.helpOutput).endl();
+			T.ptag('<yellow> [output] <!>'); T.print(__getInfoRule(A.outputRule)).endl();
+			if (A.helpOutput != null) {
+				A.helpOutput = "<gray>\t " + ~/(\n)/g.replace(A.helpOutput, "\n\t "); // append tab to newlines
+				T.ptag(A.helpOutput).endl();
+			}
 		}
 		
-		if(_pp) T.printf(' ~darkgray~~line2~');
+		if (_pp) T.ptag(' <darkgray>' + StrT.line(LINE_LEN)).endl();
 		T.reset();
 		
-		// - Print <actions>
+		// -- Print <actions>
+		// -----------------------------
 		if (A.Actions.length > 0) {
-			T.printf(" ~magenta~<actions> ~!.~");
-			T.printf("~darkmagenta~you can set one action at a time ~!~\n");
+			T.ptag("<magenta> [actions] ");
+			T.ptag("<darkmagenta>(you can set one action at a time)<!>\n");
 			for (i in A.Actions) {
 				if (i[1].charAt(0) == "-") continue;
-				T.printf('~white~ ${i[0]}' + sp(HELP_MARGIN - i[0].length) + '${i[1]}');
-				if (i[3] != null) T.printf('~darkgray~ ~ auto ext:[${i[3]}]');
-				T.endl().print(sp(HELP_MARGIN));
-				T.printf('~gray~ ${i[2]}\n').reset();
+				i[1] = __fixDescFormat(i[1], i[2] == null?'':'<darkgray> | auto ext:[${i[2]}] <!>');
+				T.fg(white).bold();
+				T.ptag(' ' + i[0] + sp(HELP_MARGIN - i[0].length)).reset().ptag(i[1]);
+				T.endl();
 			}
 		}// --
-		
-		// - Print <options>
-		if (A.Options.length > 0) {
-			T.printf(" ~cyan~<options> ~!.~");
-			T.printf("~darkcyan~you can set many options~!~\n");
-			for (i in A.Options) 
-			{
-				// Skip printing <options> whose name starts with `-`
+		// -- Print <options>
+		// -----------------------------
+		if (A.Options.length > 1) {
+			T.ptag("<cyan> [options] ");
+			T.ptag("<darkcyan>(you can set multiple options)<!>\n");
+			for (i in A.Options) {
 				if (i[1].charAt(0) == "-") continue;
-				T.printf('~white~ ${_sb[0]}${i[0]}' + sp(HELP_MARGIN - i[0].length - 1) + '${i[1]}');
-				if (i[3] != null) T.printf('~darkgray~ [requires parameter] ');
-				T.endl().print(sp(HELP_MARGIN));
-				T.printf('~gray~ ${i[2]}\n').reset();
+				i[1] = __fixDescFormat(i[1], i[2] == null?'':'<darkgray> (requires parameter) <!>');
+				T.fg(white).bold();
+				T.ptag(' ' + _sb[0] +  i[0] + sp(HELP_MARGIN - i[0].length - 1)).reset().ptag(i[1]);
+				T.endl();
 			}
 		}// --
 		
-		
+		// -- Finally
+		// -----------------------------
 		if (ARGS.helpText != null) 
 		{
 			T.endl();
 			T.print('${ARGS.helpText}\n');
 		}
-		
 	}//---------------------------------------------------;
 	
 	
@@ -468,11 +432,10 @@ class BaseApp
 	**/
 	function printBanner(longer:Bool = false)
 	{
-		var P = PROGRAM_INFO;
-		var col = "cyan"; var lineCol = "darkgray"; 
+		var P = PROGRAM_INFO; // Shorter code
+		var col = "cyan";
 		T.endl(); // one blank line at first
-		T.printf('~:$col~~black~==~!~~$col~~b~ ${P.name} ~darkgray~v${P.version}~!~');
-		
+		T.ptag('<:$col,black>==<!><$col,bold> ${P.name} <darkgray>v${P.version}<!>');
 		if (longer)
 		{
 			if (P.author != null) T.print(' by ${P.author}'); 
@@ -484,19 +447,9 @@ class BaseApp
 			T.endl();
 		}
 		
-		T.printf(' ~$lineCol~~line~~!~');
+		T.ptag('<$darkgray>' + StrT.line(LINE_LEN) + '<!>\n');
 	}//---------------------------------------------------;
 	
-	
-	/**
-	 **/
-	function exitError(text:String, showHelp:Bool = false):Void
-	{
-		T.printf('\n~:darkred~~white~ ERROR ~!~ ~red~$text\n');
-		if (showHelp) T.printf('~darkgray~ ~line2~~yellow~ ${_sb[0]}${_sb[1]} ~!~ for usage info\n');
-		LOG.log(text, 4);
-		Sys.exit(1);
-	}//---------------------------------------------------;
 	
 	// Search an <OPTION> object on the ARGS object
 	function getArgOption(tag:String):Array<String>
@@ -512,12 +465,64 @@ class BaseApp
 			// Search by same tag
 			if (tag != null && a[0] == tag) return a; 
 			// Search by same ext
-			if (ext != null && a[3] != null) {
-				if (a[3].split(',').indexOf(ext.toLowerCase()) >= 0) return a;
+			if (ext != null && a[2] != null) {
+				if (a[2].split(',').indexOf(ext.toLowerCase()) >= 0) return a;
 			}
 		}
 		return null;
 	}//---------------------------------------------------;
+	
+	//====================================================;
+	// USER FUNCTIONS
+	//====================================================;
+	
+	/**
+	 * Display a message and Exit immediately
+	 **/
+	function exitError(text:String, showHelp:Bool = false):Void
+	{
+		T.ptag('\n<:darkred,white> ERROR <!> <red>$text\n');
+		if (showHelp) T.ptag('<darkgray>' + StrT.line(LINE_LEN) + '\n<yellow> ${_sb[0]}${_sb[1]} <!> for usage info\n');
+		LOG.FLAG_STDOUT = false; // In case this was on. I don't want to log to stdout again.
+		LOG.log(text, 4);
+		Sys.exit(1);
+	}//---------------------------------------------------;
+
+	/**
+	 * Check to see if this is running as Admin
+	 */ 
+	function isAdmin():Bool
+	{
+		var res = djNode.utils.CLIApp.quickExecS('fsutil dirty query %systemdrive% >nul');
+		return(res != null);
+	}//---------------------------------------------------;
+	
+	/**
+	   Automatically call the matching function of an action
+	   - You need to define the function in the extended class
+	   - Function name = "action_" + Action
+	**/	
+	function autoCallAction()
+	{
+		var fn = Reflect.field(this, "action_" + argsAction);
+		if (fn != null && Reflect.isFunction(fn))
+		{
+			return Reflect.callMethod(this, fn, []);
+		}
+		return null;
+	}//---------------------------------------------------;
+	
+	
+	/**
+	 * Awaits any key and then exits the program
+	 * Useful for preventing terminals from auto-closing.
+	 */
+	function waitKeyQuit():Void 
+	{
+		T.ptag('\n<darkgray>Press any key to quit.<!>\n');
+		Keyboard.startCapture(true, function(e:String) { Sys.exit(0); });
+	}//---------------------------------------------------;
+		
 	
 }//--end class--//
 
@@ -553,84 +558,42 @@ typedef AppArguments =
 	requireAction:Bool,		// An action IS required, either be implicit setting or by file extension
 	
 	supportWildcards:Bool,	// If true, <*.*> and <*.ext> will be resolved. Else ERROR
-	
-	supportStrayArgs:Bool,	// If true, program will not ERROR on undeclared <options>
-							// # NOT IMPLEMENTED ! !
-	
-							// DEV: Use "\n" for linebreaks for help texts
 							
-	helpInput:String,		// Help text displayed for <input> on the the -help screen (optional)
-	helpOutput:String,		// Help text displayed for <input> on the the -help screen (optional)
+	helpInput:String,		// Help text displayed for [input] on the the -help screen (optional)
+	helpOutput:String,		// Help text displayed for [input] on the the -help screen (optional)
 	helpText:String,		// Text displayed below program usage on the -help screen (optional)
+	
+							// ^DEV: Use "\n" for linebreaks for help texts
 	
 	Actions:Array<Array<String>>,	// Holds Actions in an array of arrays.
 									//
-									// [ActionID, ActionName, ActionDescription, Extensions]
-									//  string,   string,     string,			 string
+									// [ActionID, ActionDescription, Extensions]
+									//  String    String			 String
 									//
-									// e.g. ["e","Extract","Extracts input file into output folder"] =>
-									//			node app.js e archive.zip -o c:\
+									// e.g. ["e","Extracts input file into output folder"]
 									//
+									// = You can put color tags in the description e.g. <yellow>word<!>
 									// = `Extensions`
-									// - Will AutoAssociate an extension with an action, so if you
-									//   skip setting an action, it can be guessed by the input file
-									//   extension.
-									// - Separate multiple extensions with a comma (,)
-									// - Null (don't set) for no extensions
-									// - e.g. ["e","Extract","Extracts file", "zip,7z"] =>
-									//		node app.js input.zip 
-									// =
-									// - `ActionName` if starting with '-' will not show in help
-									//
+									//   - Will AutoAssociate an extension with an action, so if you
+									//     skip setting an action, it can be guessed by the input file
+									//     extension.
+									//   - Separate multiple extensions with a comma (,)
+									//   - Null (don't set) for no extensions
+									//   - e.g. ["e","Extracts file", "zip,7z"] ::
+									//	  		# node app.js input.zip 
+									//			#  ^ will automatically call "e" action
 									
 	Options:Array<Array<String>>    // Holds Options in an array of arrays.
 									//
-									// [ OptionID, OptionName, OptionDescription, RequireValue ]
-									//   string,   string,     string,            String
+									// [ OptionID, OptionDescription, RequireValue ]
+									//   String    String             String
 									//
-									// e.g. ["t","Temp","Set Temp Folder","1"] => 
+									// e.g. ["t","Set Temp Folder","1"] ::
 									//			node app.js -t c:\temp\
-									//      ["q","Quick","Quick operation mode",false] =>
+									//      ["q","Quick operation mode",false] ::
 									//			node app.js -q
-									// `RequireValue`
+									// = You can put color tags in the description e.g. <yellow>word<!>
+									// = `RequireValue`
 									// 		This option requires an additional parameter (just one)
 									//  	Set any string for YES, e.g. "yes"
-									// `OptionName` ,  if starting with '-' will not show in help
 };
-
-
-
-
-
-/* [A0001] - Example PrintHelp() output :
-	
-== CD Crush v1.1.2
- - Dramatically reduce the filesize of CD image games
- - JohnDimi, twitter@jondmt
- --------------------------------------------------
- Program Usage:
-		 app <action> -<option> <parameter> <option2> ..
-				<input> <input2> ... -o <output>
- -------------------------
- <input> is required.
-		 Action is determined by input file extension.   <-- USER set
-		 Supports multiple inputs and wildcards (*.cue)	 <-- USER set
- <output> is optional.
-		 Specify output directory.						 <-- USER set
- -------------------------
- <actions> you can set one action at a time
- c      Crush
-		Crush a cd image file (.cue .ccd files)
- r      Restore
-		Restore a crushed image (.arc files)
- <options> you can set many options
- -t     Temp Directory [requires parameter]
-		Set a custom working directory
- -f     Restore to Folders
-		Restore ARC files to separate folders
- -q     Audio compression quality [requires parameter]
-		1 - Ogg Vorbis, 96kbps VBR
-		2 - Ogg Vorbis, 128kbps VBR
-		3 - Ogg Vorbis, 196kbps VBR
-		4 - FLAC, Lossless
- */

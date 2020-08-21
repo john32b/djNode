@@ -6,8 +6,6 @@
  * . Reports Realtime StdOut and StdErr
  * . Static functions for quickly calling/checking
  * . Must be used for one operation at a time, for parallel same apps use multiple objects
- *
- * @supports : nodeJS
  * 
  * ---------------------------------------*/
 
@@ -22,6 +20,7 @@ import js.node.Path;
 import js.node.stream.Writable;
 
 
+@:dce
 class CLIApp
 {
 	// The process
@@ -183,6 +182,9 @@ class CLIApp
 	public static function quickExec(path:String, callback:Bool->String->String->Void)
 	{
 		// Encoding is utf8 by default
+		if (!FLAG_LOG_QUIET){
+			LOG.log('QuickExec : $path');
+		}
 		ChildProcess.exec(path,  function (error:Dynamic, stdout:Dynamic, stderr:Dynamic) {
 			callback(error == null, stdout, stderr);
 		});
@@ -190,7 +192,8 @@ class CLIApp
 	
 	/**
 	   Run and return the STDOUT
-	   @param	path
+	   If the program exits with Error, the Return will be `null'
+	   @param	path Can be program or command with parameters e.g. "sc query"
 	   @return
 	**/
 	public static function quickExecS(path:String):String
@@ -199,6 +202,9 @@ class CLIApp
 		// var stdo:String = ChildProcess.execSync('app.exe', {stdio:['ignore', 'pipe', 'ignore']});
 		// returns the stdout, [ignore,pipe,ignore] are stdin,stdout,stderr. Default is all 'pipe'
 		try{
+			if (!FLAG_LOG_QUIET){
+				LOG.log('ExecSync : $path');
+			}
 			return ChildProcess.execSync(path);
 		}catch (e:Dynamic)
 		{

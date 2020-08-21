@@ -3,7 +3,7 @@
  * ----------------------------------------------
  * - General purpose logging tools
  * --------------------------
- * @author: johndimi, <johndimi@outlook.com> , @jondmt
+ * @author: johndimi, <johndimi@outlook.com>
  * 
  * Features:
  * ---------
@@ -78,6 +78,9 @@ class LOG
 	 * Default = true */
 	public static var FLAG_SHOW_POS = true;
 	
+	// If true will output the log in stdout
+	public static var FLAG_STDOUT = false;
+	
 	/** If > 0. Will limit the number of log messages in memory. File logging is not affected */
 	public static var BUFFER_SIZE:Int = 8000;
 	
@@ -105,8 +108,10 @@ class LOG
 	/**
 	   Pipe all traces to Log.log()
 	**/
-	public static function pipeTrace()
+	public static function pipeTrace(produceStdout:Bool = false)
 	{
+		FLAG_STDOUT = produceStdout;
+		
 		Log.trace = function(msg:Dynamic, ?pos:PosInfos)
 		{
 			log(msg, 1, pos);
@@ -157,6 +162,11 @@ class LOG
 			push_File(logmsg);
 			
 		if (onLog != null) onLog(logmsg);
+		
+		if (FLAG_STDOUT)
+		{
+			BaseApp.TERMINAL.println(logmsg.log);
+		}
 	}//---------------------------------------------------;
 		
 	/**
@@ -203,7 +213,7 @@ class LOG
 
 	
 	/**
-	 * Logs a logMessage to the file set for logging.
+	 * Logs a logMessage to the Log File
 	 */
 	static function push_File(log:LogMessage)
 	{
@@ -219,7 +229,8 @@ class LOG
 			Fs.appendFileSync(logFile, m, 'utf8');
 		}catch (e:Error)
 		{
-			BaseApp.TERMINAL.printf('~red~ - NO SPACE LEFT FOR THE LOG FILE - ~!~\n');
+			// ?? Should it exit from the app 
+			BaseApp.TERMINAL.ptag('<red> - NO SPACE LEFT FOR THE LOG FILE - <!>\n');
 			Sys.exit(1);
 		}
 	}//---------------------------------------------------;

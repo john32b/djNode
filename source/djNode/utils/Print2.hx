@@ -1,43 +1,169 @@
+/********************************************************************
+ * Extra Print Functions
+ * 
+ * - Basic Tables
+ * - Basic Header and Text 
+ * 
+ * 
+ * 
+ *******************************************************************/
+
 package djNode.utils;
 
+import djA.StrT;
 import djNode.Terminal;
-import djNode.tools.StrTool;
 import js.lib.Error;
 
-/**
- * Extra Print Functions
- * ...
- *  - Set a slot style
- *  - Call e.g. printf("Compressing %1 and %1 on %2",file1,file2,path); // file1,file2=style1, path=style2
- */
 @:dce
 @:access(djNode.Terminal)
 class Print2 
 {
-	
 	public static final NO_NEWLINE = "@n";
 	
-	// Pointer to an initialized Terminal Object
+	// Pointer to the global Terminal Object
 	var T:Terminal;
+	
+	// Global Print Padding for (table,p,list)
+	// Setting a header sets this, or you can set this manually
+	public var lpad:Int = 0;
+	
+	// templ, pad0, pad1,
+	// line:null or "len:color"
+	public var H_STYLES = [
+		{
+			templ:'<cyan>>> <bold,white,:darkblue> {1} <!>',
+			pad0:1, // Start from this much pad from root pad
+			pad1:4,  // At newline, set this much padding
+			line:'1:cyan'
+		},
+		{
+			templ:'<:blue,black> > <!> <blue>{1}<!>',
+			pad0:4,
+			pad1:7,
+			line:null
+		}
+	];
+	
+	
 	var styles:Array<Dynamic>;
 	
-	// Global left pad for all types by this object
-	// use setLeftPad() to set
-	var g_leftpad:String = "";
+	//---------------------------------------------------;
 	
-	public var leftPad(default, set):Int = 0;
-	function set_leftPad(v){
-		g_leftpad = StringTools.lpad("", " ", v);
-		return leftPad = v;
-	}
-	
-	public function new(t:Terminal) 
+	public function new() 
 	{
-		T = t;
+		T = BaseApp.TERMINAL;
 		styles = [];
 	}//---------------------------------------------------;
 	
 	
+	/**
+	 * Print Header -- From Predefined Template Source --
+	 * Basically the same as pt(), but applies paddings as well
+	 * @param	size 0+
+	 * @param	text
+	 */
+	public function H(text:String,size:Int = 0)
+	{
+		var s = H_STYLES[size];
+		lpad = s.pad0;
+		ptem(s.templ, text);
+		
+		if (s.line != null)
+		{
+			var r = s.line.split(':');
+			var l = Std.parseInt(r[0]);
+			if (l == 1) {
+				l = T.PARSED_NOTAG.length;
+			}
+			if (l > 0) 
+			{
+				T.fg(TColor.createByName(r[1]));
+				if (lpad > 0) T.forward(lpad);
+				T.println(StrT.line(l));
+				T.resetFg();
+			}
+		}
+		lpad = s.pad1;
+	}//---------------------------------------------------;
+	
+	/**
+	 * Print Normal Text
+	 * !Assumes cursor at newline
+	 * @param	text
+	 * @return
+	 */
+	public function p(text:String):Print2
+	{	
+		if (lpad > 0) T.forward(lpad);
+		T.ptag(text).endl();
+		return this;
+	}//---------------------------------------------------;
+	
+	
+	/**
+	 * New Line
+	 * @return
+	 */
+	public function br():Print2
+	{
+		T.endl(); return this;
+	}//---------------------------------------------------;
+	
+	
+	/**
+	 * Draw a line
+	 * !Assumes cursor at newline
+	 * @param	len
+	 * @return
+	 */
+	public function line(len:Int = 40):Print2
+	{
+		if (lpad > 0) T.forward(lpad);
+		T.println(StrT.line(len));
+		return this;
+	}//---------------------------------------------------;
+	
+	
+	/**
+	 * Print a Parsed Template using current 
+	 */
+	public function ptem(tem:String, t1:String, ?t2:String, ?t3:String)
+	{
+		p(parseTempl(tem, t1, t2, t3));
+	}//---------------------------------------------------;
+	
+	
+	/**
+	 * Parse a Template String. A template string is a string with {1}, {2}, {3} tags
+	 * It replaces these tags with the String Arguments
+	 * Only up to 3 Slots are supported. No more.
+	 * The {1} parameter is mandatory, 2,3 optional
+	 * e.g. parseTempl("Status:{1}, Time:{2}", "active", "11:22") ==> "Status:active, Time:11:22"
+	 * @param	tem Template Guide
+	 * @param	t1 Text to put at {1}
+	 * @param	t2 Optional text to put at {2}
+	 * @param	t3 Optional text to put at {3}
+	 */
+	public function parseTempl(tem:String, t1:String, ?t2:String, ?t3:String):String
+	{
+		var r = ~/\{(-?\d+):?(-?\d+)?\}/g;
+		return r.map(tem, (r1)->
+		{
+			var m = r.matched(1);
+			var part = switch (Std.parseInt(m)) {
+				case 1: t1;
+				case 2: t2;
+				case 3: t3;
+				default : throw "Templates support up to three(3) capture groups";
+			}
+			
+			if (r1.matched(2) != null) { // Some padding is required. 
+				part = djA.StrT.padString(part, Std.parseInt(r1.matched(2)));
+			}
+			
+			return part;
+		});
+	}//---------------------------------------------------;
 	/**
 	   Create a style
 	   @param	no Index from 0+
@@ -71,8 +197,9 @@ class Print2
 	   @param	str Input String. {n} Will use style n , {0:X} will apply padding with X length
 	   @param	A Strings here will be printed IN ORDER whenever a {n} occurs
 	**/
-	public function print1(str:String, A:Array<String>)
-	{
+	//public function print1(str:String, A:Array<String>)
+	//{
+		/*
 		var c:Int = 0;
 		var r = ~/\{(-?\d+):?(-?\d+)?\}/g;
 		var B:Array<String> = [];
@@ -88,7 +215,7 @@ class Print2
 			var part = A[c++];
 			
 			if (r1.matched(2) != null) { // Some padding is required. 
-				part = StrTool.padString(part, Std.parseInt(r1.matched(2)));
+				part = StrT.padString(part, Std.parseInt(r1.matched(2)));
 			}
 			
 			B.push(part);
@@ -116,7 +243,8 @@ class Print2
 		
 		var i = 0;
 		return r.map(str, r->B[i++]); // Create and return the no color string
-	}//---------------------------------------------------;
+		*/
+	//}//---------------------------------------------------;
 
 	/**
 	    Another markup syntax
@@ -160,6 +288,120 @@ class Print2
 				
 		var i = 0;
 		return r.map(str, r->A[i++]); // Create and return the no color string
+	}//---------------------------------------------------;
+
+		
+	
+	/********************************************************************
+	 * TABLES
+	 * ------
+	 * - Define column areas and then print text to rows/cells
+	 * - Purpose is to quickly align text fields in columns
+	 * 
+	 * Example:
+	 * --------
+	 * 	.table('C,10,2|C,20,5');
+	 *  .tline();
+	 *  .tr(["Column1","Column2"]);
+	 *  .tline();
+	 *  .tr(['data0','data1']);
+	 *  .tc('data0');
+	 *  .tc('data1'); .tr();
+	 * 
+	 *******************************************************************/
+	
+	// Table Data | {align:String,width:Int,pad:Int,xpos:Int} | xpos from table start x
+	var _table:Array<Dynamic> = null;
+	// Table Active cell | Starts at 0
+	var _tActiveCell:Int;
+	// Total table width (pads + widths)
+	var _table_width:Int;
+	
+	/**
+	   Initialize a Table | CSV Data
+	   >> MAKE SURE to create a table at the start of a line  <<
+	   @param	DATA Align:{L,C,R},Width:Int,?LeftPad:Int | .. same
+				e.g. "L,20,2|R,20|C,30,3"
+	**/
+	public function table(DATA:String)
+	{
+		_table = [];
+		_tActiveCell = 0; // Active cell 
+		var xpos = 0; // For individual cells
+		for (c in DATA.split('|')) {
+			var D = c.split(',');
+				if (D.length == 2) D.push('0'); // Add the default 0 left pad if missing
+			var w = Std.parseInt(D[1]);
+			var pad = Std.parseInt(D[2]);
+			var al = switch(D[0]){
+				case "R": "right";
+				case "C": "center";
+				default : "left";
+			};
+			_table.push({
+				align:al,
+				width:w,
+				pad:pad,
+				xpos:pad + xpos
+			});
+			xpos += w + pad;
+		}
+		_table_width = xpos;
+		//trace("Declared table", _table,_table_width);
+	}//---------------------------------------------------;
+	
+	/**
+	   Put an entire row of data at current row of table
+	   * INCREMENTS ROW *
+	   * If you want colors, do it manually beforehand *
+	   @param	cells If null it will just increment the row
+	**/
+	public function tr(?cells:Array<String>)
+	{
+		if (_table == null) throw "Table not defined";
+		_tActiveCell = 0;
+		if (cells == null) {
+			// I want to go to the next line without overwriting anything at the current line
+			// OK it can go beyond the table end
+			T.forward(_table_width).endl();
+			return;
+		}
+		for (c in cells) tc(c);
+		T.endl();
+	}//---------------------------------------------------;
+	
+	/**
+	   Write to a <Table Cell>
+	   * DOES NOT INCREMENT ROW *
+	   * If you want colors, do it manually beforehand *
+	   @param	text 
+	   @param	cell Cell index, starting at 1. Auto = 0 (next available). WARNING will stop at the last one.
+	**/
+	public function tc(text:String, ind:Int = 0)
+	{
+		if (_table == null) throw "Table not defined";
+		if (ind == 0) ind = _tActiveCell; else ind--;
+		if (ind >= _table.length) {
+			trace('Table Cell ($_tActiveCell) Overflow, for text ($text)');
+			return;
+		}
+		var d = _table[ind];
+		T.back(_table_width + lpad + 1);	// Go back way left, to the start of the parent
+		if (lpad > 0) T.forward(lpad);
+		if (d.xpos > 0) T.forward(d.xpos); // I need to check because even 0 value will increment 1
+		T.print(StrT.padString(text, d.width, d.align));
+		_tActiveCell++;
+	}//---------------------------------------------------;
+	
+	/**
+	   Draw a decorative line (autowidth to full table)
+	   >> Assumes cusrsor ready at new line <<
+	**/
+	public function tline()
+	{
+		if (_table == null) throw "Table not defined";
+		line(_table_width);
+		_tActiveCell = 0;
 	}//---------------------------------------------------;
 	
 }// --
