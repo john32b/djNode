@@ -1,41 +1,24 @@
-/**----------------------------------------------
- * BaseApp
- * ===========
- * = Generic Template for the Main Entry Class
+
+/********************************************************************
+ * BaseApp.hx
+ * Generic Template for the Main Entry Class
  * 
  * Features:
  * ------------
- * - Easy retrieval of arguments 
- * . Extend this class
- * . Handles input parameters, check examples
- * . Supports basic wildcard for input files (*.ext) or (file.*)
- * . Semi-automated usage info
+ * - Easy way to declare and handle input parameters
+ * - Supports <actions> <options> <input> <output> as input
+ * . Supports basic wildcard for <input> (*.ext) or (file.*)
+ * - Automatic generation of help/usage text
  * 
- * Notes:
+ * Help
  * ------------
- * 
  * 	- Override init() and set ARGS and PROGRAM_INFO there
  * 
- * 
- * Changes since last ver:
- * ----------------
- * 	- Options no longer require an initial `-` when declared
- *  - NEW: FLAG_USE_SLASH_FOR_OPTION, Can set this on init()
- *         Help will require `/?` or `-help` depending 
- * 
- * 
- * 
- * TIPS
- * ------------------
- * 		Node.__dirname	- Directory of the running script
- * 
- *
- * 
- ========================================================*/
+ *******************************************************************/
+
 package djNode;
 
 import djA.StrT;
-import haxe.CallStack;
 import js.lib.Error;
 import js.Node;
 import js.node.Path;
@@ -48,16 +31,22 @@ import djNode.tools.LOG;
 
 class BaseApp
 {
+	// djNode Version
+	public static inline var VERSION = "0.6";
+	
+	// Instance
+	public static var app:BaseApp;
+	
 	// Keep one terminal object for the entire app.
 	// All other classes should link to this one, instead of creating new terminals.
 	public static var TERMINAL(default, null):Terminal;
 
-	// Default line length, used in printhelp and exiterror
+	// Default line length, used in printhelp and 3
 	inline static var LINE_LEN = 40;
 	
 	// Spacing formatter on the help screen
-	// Aligns the Description of Options,Actions to this many chars from the left 
-	var HELP_MARGIN:Int = 12;
+	// Aligns the Description of Options, Actions to this many chars from the left 
+	var HELP_MARGIN:Int = 16;
 	
 	// Pointer to the global terminal, small varname for quick access from within this class
 	var T(default, null):Terminal;
@@ -119,11 +108,12 @@ class BaseApp
 	// [1] help string (? or help)
 	@:noCompletion var _sb:Array<String>;
 	
-	/**
-	 * 
-	 */
+	//====================================================;
+	
 	public function new() 
 	{
+		BaseApp.app = this;
+		
 		FLAG_USE_SLASH_FOR_OPTION = false;
 		
 		LOG.init();
@@ -137,13 +127,13 @@ class BaseApp
 		});
 		
 		// User pressed CTRL+C
-		Node.process.once("SIGINT", function() { Sys.exit(1223); } );
+		Node.process.once("SIGINT", function() { Sys.exit(1223); } ); // 1223 : The operation was canceled by the user.
 		
 		// JStack Library
 		// Use the JSTACK_NO_SHUTDOWN define to use custom handlers
 		Node.process.once("uncaughtException", function(err:Dynamic) 
 		{
-			var e:String = " ** Uncaught Exception ** \n";
+			var e:String = " - Uncaught Exception - \n";
 			if (Std.is(err, Error)) e += err.message; else e += cast err;
 			exitError(e);
 		});
@@ -421,7 +411,7 @@ class BaseApp
 		if (ARGS.helpText != null) 
 		{
 			T.endl();
-			T.print('${ARGS.helpText}\n');
+			T.ptag('${ARGS.helpText}\n');
 		}
 	}//---------------------------------------------------;
 	
@@ -438,10 +428,10 @@ class BaseApp
 		T.ptag('<:$col,black>==<!><$col,bold> ${P.name} <darkgray>v${P.version}<!>');
 		if (longer)
 		{
-			if (P.author != null) T.print(' by ${P.author}'); 
+			if (P.author != null) T.ptag(' by ${P.author}'); 
 			T.endl();
-			if (P.info != null) T.print(' - ${P.info}\n');
-			if (P.desc != null) T.print(' - ${P.desc}\n');
+			if (P.info != null) T.ptag(' - ${P.info}\n');
+			if (P.desc != null) T.ptag(' - ${P.desc}\n');
 		}else
 		{
 			T.endl();
@@ -479,9 +469,9 @@ class BaseApp
 	/**
 	 * Display a message and Exit immediately
 	 **/
-	function exitError(text:String, showHelp:Bool = false):Void
+	public function exitError(text:String, showHelp:Bool = false):Void
 	{
-		T.ptag('\n<:darkred,white> ERROR <!> <red>$text\n');
+		T.ptag('\n<:darkred,white> ERROR <!> $text<!>\n');
 		if (showHelp) T.ptag('<darkgray>' + StrT.line(LINE_LEN) + '\n<yellow> ${_sb[0]}${_sb[1]} <!> for usage info\n');
 		LOG.FLAG_STDOUT = false; // In case this was on. I don't want to log to stdout again.
 		LOG.log(text, 4);
@@ -572,16 +562,17 @@ typedef AppArguments =
 									//
 									// e.g. ["e","Extracts input file into output folder"]
 									//
-									// = You can put color tags in the description e.g. <yellow>word<!>
-									// = `Extensions`
-									//   - Will AutoAssociate an extension with an action, so if you
-									//     skip setting an action, it can be guessed by the input file
-									//     extension.
-									//   - Separate multiple extensions with a comma (,)
-									//   - Null (don't set) for no extensions
-									//   - e.g. ["e","Extracts file", "zip,7z"] ::
-									//	  		# node app.js input.zip 
-									//			#  ^ will automatically call "e" action
+									// - You can put color tags in the description e.g. <yellow>word<!>
+									// - If description starts with '-' help will not print this action
+									// - [Extensions]
+									// 		- Will AutoAssociate an extension with an action, so if you
+									//  		 skip setting an action, it can be guessed by the input file
+									// 	 		 extension.
+									// 		- Separate multiple extensions with a comma (,)
+									// 		- Null (don't set) for no extensions
+									// 		- e.g. ["e","Extracts file", "zip,7z"] ::
+									//		# node app.js input.zip 
+									//		#  ^ will automatically call "e" action
 									
 	Options:Array<Array<String>>    // Holds Options in an array of arrays.
 									//
@@ -592,8 +583,8 @@ typedef AppArguments =
 									//			node app.js -t c:\temp\
 									//      ["q","Quick operation mode",false] ::
 									//			node app.js -q
-									// = You can put color tags in the description e.g. <yellow>word<!>
-									// = `RequireValue`
+									// - You can put color tags in the description e.g. <yellow>word<!>
+									// - [RequireValue]
 									// 		This option requires an additional parameter (just one)
 									//  	Set any string for YES, e.g. "yes"
 };

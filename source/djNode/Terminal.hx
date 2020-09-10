@@ -101,6 +101,7 @@ class Terminal
 	static inline var _RESET_BLINK	= '\x1B[25m';
 	static inline var _RESET_HIDDEN	= '\x1B[28m';
 	
+	// DEV: I don't know why have it as an option, should always be enabled? No speed critical function is going to call parsetags.
 	/** If true the function `parseTags` `ptag`, will fillout `PARSED_NOTAG` which is an untagged parse */
 	public var ENABLE_NOTAG:Bool = true;
 	
@@ -505,5 +506,14 @@ class Terminal
 		return res;
 	}//---------------------------------------------------;	
 	
+	/**
+	   Repeat a charac
+	   @param	len
+	   @param	char
+	**/
+	public function rep(len:Int = 40, char:String = "-"):Terminal
+	{
+		return print(StringTools.lpad("", char, len));
+	}//---------------------------------------------------;
 	
 }//-- end class--//

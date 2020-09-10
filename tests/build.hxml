@@ -2,6 +2,7 @@
 
 -lib hxnodejs
 -lib djNode
+-lib djA
 -cp src/
 -main main
 -js bin/app.js

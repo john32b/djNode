@@ -11,6 +11,7 @@
 	
 package djNode.task;
 import js.Node;
+import js.node.Timers.Timeout;
 
 
 class CTestTask extends CTask
@@ -32,7 +33,7 @@ class CTestTask extends CTask
 		var timesToTick:Int = Math.ceil(time / tick);
 		var progressInc = Math.ceil(100.0 / timesToTick);
 		
-		var timer:IntervalObject;
+		var timer:Timeout = null;
 		
 		quickRun = function(t){
 			

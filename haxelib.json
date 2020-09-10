@@ -4,9 +4,12 @@
 	"url" : "https://github.com/johndimi/djNode",
 	"license": "MIT",
 	"tags": ["nodeJs"],
-	"version": "0.5.0",
+	"version": "0.6.0",
 	"classPath": "source/",
 	"releasenote": "",
 	"contributors": ["JohnDimi"],
-	"dependencies": { "hxnodejs": "" }
+	"dependencies": { 
+		"hxnodejs": "",
+		"djA":""
+	}
 }

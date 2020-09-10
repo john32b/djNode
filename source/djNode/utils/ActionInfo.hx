@@ -24,17 +24,16 @@
  
 package djNode.utils;
 
-import djNode.Terminal.Color;
 import djNode.tools.LOG;
-
+import djNode.Terminal.TColor;
 
 class ActionInfo
 {
 	// -- Theming :
 	public var style:ActionInfoStyle = 
 	{
-		accentColor:"yellow",
-		infoColor:"darkgray",
+		accentColor:yellow,
+		infoColor:darkgray,
 		prefix:" ",
 		separator:":"
 	};
@@ -62,11 +61,11 @@ class ActionInfo
 	 * @param	sub
 	 * @param   pairColor override the default color for the pair value
 	 */
-	public function printPair(action:String, info:Dynamic = "", ?pairColor:String)
+	public function printPair(action:String, info:Dynamic = "", ?pairColor:TColor)
 	{
-		t.printf('${style.prefix}$action ${style.separator} ');
+		t.ptag('${style.prefix}$action ${style.separator} ');
 		if (pairColor == null) t.fg(style.accentColor); else t.fg(pairColor);
-		t.printf(Std.string(info) + '\n~!~');
+		t.ptag(Std.string(info) + '<!>\n');
 	}//---------------------------------------------------;
 	
 
@@ -74,12 +73,12 @@ class ActionInfo
 	// Print a one line quick action
 	public function quickAction(action:String, success:Bool, ?info:String)
 	{
-		t.printf('${style.prefix}$action ${style.separator} ');
+		t.ptag('${style.prefix}$action ${style.separator} ');
 
 		__printSuccess(success);
 		
 		if (info != null) {
-			t.printf('~${style.infoColor}~ , $info~!~');
+			t.ptag('<${style.infoColor}> , $info<!>');
 		}
 		
 		t.endl();
@@ -92,7 +91,7 @@ class ActionInfo
 	 */
 	public function actionStart(action:String)
 	{
-		t.printf('${style.prefix}$action ${style.separator} ');
+		t.ptag('${style.prefix}$action ${style.separator} ');
 		t.savePos();
 		_waitResult = true;
 	}//---------------------------------------------------;
@@ -111,7 +110,7 @@ class ActionInfo
 		__printSuccess(success);
 		
 		if (info != null) {
-			t.printf('~${style.infoColor}~ , $info~!~');
+			t.ptag('<${style.infoColor}> , $info<!>');
 		}
 		
 		t.endl();
@@ -126,9 +125,9 @@ class ActionInfo
 	public function actionProgress(progress:String, ?info:String)
 	{
 		t.restorePos();
-		t.printf('~${style.accentColor}~[$progress]~!~');
+		t.ptag('<${style.accentColor}>[$progress]<!>');
 		if (info != null) {
-			t.printf('~${style.infoColor}~ , $info~!~');
+			t.ptag('<${style.infoColor}> , $info<!>');
 		}
 	}//---------------------------------------------------;
 	
@@ -150,9 +149,9 @@ class ActionInfo
 	function __printSuccess(success:Bool)
 	{
 		if (success) {
-			t.printf('~green~[OK]~!~');
+			t.ptag('<green>[OK]<!>');
 		}else {
-			t.printf('~red~[FAIL]~!~');	
+			t.ptag('<red>[FAIL]<!>');	
 		}
 	}//---------------------------------------------------;
 	
@@ -166,8 +165,8 @@ class ActionInfo
 // 
 typedef ActionInfoStyle = 
 {
-	accentColor:String,
-	infoColor:String,
+	accentColor:djNode.Terminal.TColor,
+	infoColor:djNode.Terminal.TColor,
 	prefix:String,		// Before writing "ACTION"
 	separator:String	// Between action and result
 }

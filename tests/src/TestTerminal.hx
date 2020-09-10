@@ -3,21 +3,14 @@ import djNode.BaseApp;
 import djNode.Keyboard;
 import djNode.Terminal;
 
-/**
- * Terminal Test and Example
- * ...
- * @author John Dimi
- */
+
 class TestTerminal extends TestTemplate
 {
-
 	public function new(?compl:Void->Void) 
 	{
 		super("TERMINAL.hx");
 
 		onComplete = compl;
-		
-		// --
 		
 		a("Information", function(){
 			T.println('Terminal Width : ${T.getWidth()}');
@@ -25,7 +18,12 @@ class TestTerminal extends TestTemplate
 		});
 		
 		a("Colors", function(){
-			T.demoPrintColors();
+			// Print all the colors:
+			for (c in TColor.createAll()){
+				T.fg(c);
+				T.print(" = " + c.getName() + " = \n");
+				T.resetFg();
+			}
 		});
 		
 		a("print()", function(){
@@ -84,17 +82,17 @@ class TestTerminal extends TestTemplate
 		a("clearLine()", function(){
 			var l = StringTools.lpad("", '-', 40);
 				T.println(l + " : Original size for reference");
-			T.printf('~magenta~clearLine(0);~!~ Clear all Forward\n');
+			T.ptag('<magenta>clearLine(0);<!> Clear all Forward\n');
 				T.print(l).back(20);
 				T.clearLine(0).endl();
 				expect("Right part of line cleared");
 				
-			T.printf('~magenta~clearLine(1);~!~ Clear all back\n');
+			T.ptag('<magenta>clearLine(1);<!> Clear all back\n');
 				T.print(l).back(20);
 				T.clearLine(1).endl();
 				expect("Left part of line cleared");
 				
-			T.printf('~magenta~clearLine(2);~!~ Clear Entire Line\n');
+			T.ptag('<magenta>clearLine(2);<!> Clear Entire Line\n');
 				T.print(l).back(20);
 				T.clearLine(2).endl();
 				expect("Empty Line above ^");
@@ -104,12 +102,12 @@ class TestTerminal extends TestTemplate
 	
 		a("clearScreen()", function(){
 			T.println("Press Key to:");
-			T.printf('~magenta~clearScreen(0);~!~ Clear all Forward\n');
+			T.ptag('<magenta>clearScreen(0);<!> Clear all Forward\n');
 			T.println('FROM HERE:'); T.savePos();
-			T.drawLine();
-			T.drawLine();
-			T.drawLine();
-			T.drawLine();
+			T.rep();
+			T.rep();
+			T.rep();
+			T.rep();
 		}, "key");
 		
 		a("clearScreen(0)", function(){
@@ -120,43 +118,42 @@ class TestTerminal extends TestTemplate
 		
 		a("clearScreen()", function(){
 			T.println("Press Key to:");
-			T.printf('~magenta~clearScreen(2);~!~ Clear Entire Screen\n');
+			T.ptag('<magenta>clearScreen(2);<!> Clear Entire Screen\n');
 			T.println('FROM HERE:'); T.savePos();
-			T.drawLine();
-			T.drawLine();
-			T.drawLine();
-			T.drawLine();
+			T.rep();
+			T.rep();
+			T.rep();
+			T.rep();
 		}, "key");
 		
 		a("clearScreen(2)", function(){
 			T.restorePos();
 			T.print(" Clearing... ");
 			T.clearScreen(2);
-			T.printf(" Cleared Entire Screen with ~magenta~clearScreen(2)\n~!~");
+			T.ptag(" Cleared Entire Screen with <magenta>clearScreen(2)\n<!>");
 		}, "key");
 		
 		a("printf(), sprintf()", function(){
 			T.println("Inline TAGS with sprintf()");
-			T.printf("~green~This ~bg_cyan~~black~line is supposed ~yellow~ ~!bg~ to have ~red~multiple ~white~ colors. ~!~ (Reseted and now normal text)");
+			T.ptag("<green>This <:cyan,black>line is supposed <yellow,!bg> to have <red>multiple <cyan>colors. <!> (Reseted and now normal text)");
 			T.endl();
 		});
 		
-		a("Styles", function()
-		{
-			T.println("Testing some predefined header styles");
-			T.H1("This is an H1 header.");
-			T.H2("This is an H2 header.");
-			T.H3("This is an H3 header.");
-			T.list("List item 1");
-			T.list("List item 2");
-			T.list("List item 3");
-			T.endl();
-			T.bold();
-			T.println("This should be BOLD text").resetBold();
-		});
+		//a("Styles", function()
+		//{
+			//T.println("Testing some predefined header styles");
+			//T.H1("This is an H1 header.");
+			//T.H2("This is an H2 header.");
+			//T.H3("This is an H3 header.");
+			//T.list("List item 1");
+			//T.list("List item 2");
+			//T.list("List item 3");
+			//T.endl();
+			//T.bold();
+			//T.println("This should be BOLD text").resetBold();
+		//});
 			
 		doNext();
 	}//---------------------------------------------------;
-	
 
 }// --

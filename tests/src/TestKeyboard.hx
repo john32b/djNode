@@ -1,14 +1,9 @@
 package;
 import djNode.Keyboard;
 
-/**
- * Keyboard Test and Example
- * ...
- * @author John Dimi
- */
+
 class TestKeyboard extends TestTemplate 
 {
-
 	public function new(?C:Void->Void) 
 	{
 		super("KEYBOARD.hx");
@@ -44,7 +39,7 @@ class TestKeyboard extends TestTemplate
 			T.print("--: INPUT: ");
 			Keyboard.onData = function(data) {
 				T.endl();
-				T.printf("You entered : ~yellow~ " + data);
+				T.ptag("You entered : <yellow> " + data);
 				Keyboard.stop();
 				T.endl().reset();
 				doNext();

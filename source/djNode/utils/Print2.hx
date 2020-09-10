@@ -6,6 +6,11 @@
  * 
  * 
  * 
+ * TODO IMPROVEMENTS:
+ * ------------------
+ * 
+ * 	- Make table tc() work with inline tags
+ * 
  *******************************************************************/
 
 package djNode.utils;
@@ -21,38 +26,47 @@ class Print2
 	public static final NO_NEWLINE = "@n";
 	
 	// Pointer to the global Terminal Object
-	var T:Terminal;
+	// Public in case you need it?
+	public var T(default, null):Terminal;
 	
 	// Global Print Padding for (table,p,list)
 	// Setting a header sets this, or you can set this manually
 	public var lpad:Int = 0;
 	
-	// templ, pad0, pad1,
-	// line:null or "len:color"
-	public var H_STYLES = [
+	/**
+	   USERSET
+	   Header styles used in h() function
+		.templ:String: The template
+		.pad0:Int: Start from this much pad from root pad
+		.pad1:Int: After the header, set this much padding
+		.line:String: Color of the line, <null> for no line
+	*/
+	public static var H_STYLES = [
 		{
 			templ:'<cyan>>> <bold,white,:darkblue> {1} <!>',
-			pad0:1, // Start from this much pad from root pad
-			pad1:4,  // At newline, set this much padding
-			line:'1:cyan'
+			pad0:1, pad1:4, line:null // line:'1:cyan'
 		},
 		{
 			templ:'<:blue,black> > <!> <blue>{1}<!>',
-			pad0:4,
-			pad1:7,
-			line:null
+			pad0:4, pad1:7, line:null
 		}
 	];
 	
+	/**
+	   USERSET
+	   Styles uses in the ps() function
+	   Replacements can be {1}, {2}, {3}
+	**/
+	public static var PS_STYLES = [
+		'<:green,white>[ {1} ]<!>',
+		'<:red,white>[ {1} ]<!>'
+	];
 	
-	var styles:Array<Dynamic>;
-	
-	//---------------------------------------------------;
+	//====================================================;
 	
 	public function new() 
 	{
 		T = BaseApp.TERMINAL;
-		styles = [];
 	}//---------------------------------------------------;
 	
 	
@@ -87,10 +101,8 @@ class Print2
 	}//---------------------------------------------------;
 	
 	/**
-	 * Print Normal Text
+	 * Print Normal Text. Supports <tags>
 	 * !Assumes cursor at newline
-	 * @param	text
-	 * @return
 	 */
 	public function p(text:String):Print2
 	{	
@@ -98,7 +110,6 @@ class Print2
 		T.ptag(text).endl();
 		return this;
 	}//---------------------------------------------------;
-	
 	
 	/**
 	 * New Line
@@ -123,11 +134,34 @@ class Print2
 		return this;
 	}//---------------------------------------------------;
 	
+	/**
+	    Print Styled - Another markup syntax to print text
+		Format: "|index|text| |index2|text| |index2|othertext"
+		- You can use predefined styles read from `PS_STYLES` to style text
+		- Returns the no-color string (useful for logging)
+		- First style is index 0
+			e.g.
+			print2('|0|Extracting| File into |1|folder|');
+	**/
+	public function ps(str:String):String
+	{
+		var r = ~/\|(\d+\|.+?)\|/g;
+		var _col = r.map(str, (r1)-> {
+			var ss = r1.matched(1); 
+			var _a = ss.indexOf('|');
+			var _ind = Std.parseInt(ss.substr(0, _a));
+			var _str = ss.substr(_a + 1); 
+			return parseTempl(PS_STYLES[_ind], _str);
+		});
+		p(_col);
+		return T.PARSED_NOTAG;
+	}//---------------------------------------------------;
 	
 	/**
-	 * Print a Parsed Template using current 
+	 * Print Text through a template. A template string is a string with {1}, {2}, {3} tags
+	 * Check parseTempl() for help
 	 */
-	public function ptem(tem:String, t1:String, ?t2:String, ?t3:String)
+	public function ptem(tem:String, t1:Any, ?t2:Any, ?t3:Any)
 	{
 		p(parseTempl(tem, t1, t2, t3));
 	}//---------------------------------------------------;
@@ -139,24 +173,28 @@ class Print2
 	 * Only up to 3 Slots are supported. No more.
 	 * The {1} parameter is mandatory, 2,3 optional
 	 * e.g. parseTempl("Status:{1}, Time:{2}", "active", "11:22") ==> "Status:active, Time:11:22"
+	 * --
+	 * NEW: You can set a Fixed Length with {1:PAD} and it will pad the string
+	 * 		Short strings will be padded, long string will be cut.
+	 *      e.g parseTempl("Task:{1:20} | Success:{2:2}","Compress","FAIL");
+	 * 		  ==>   "Task:Compress            | Success:F~"
 	 * @param	tem Template Guide
 	 * @param	t1 Text to put at {1}
 	 * @param	t2 Optional text to put at {2}
 	 * @param	t3 Optional text to put at {3}
 	 */
-	public function parseTempl(tem:String, t1:String, ?t2:String, ?t3:String):String
+	public function parseTempl(tem:String, t1:Any, ?t2:Any, ?t3:Any):String
 	{
-		var r = ~/\{(-?\d+):?(-?\d+)?\}/g;
+		var r = ~/\{(\d+):?(\d+)?\}/g;
 		return r.map(tem, (r1)->
 		{
 			var m = r.matched(1);
-			var part = switch (Std.parseInt(m)) {
+			var part:String = switch (Std.parseInt(m)) {
 				case 1: t1;
 				case 2: t2;
 				case 3: t3;
 				default : throw "Templates support up to three(3) capture groups";
 			}
-			
 			if (r1.matched(2) != null) { // Some padding is required. 
 				part = djA.StrT.padString(part, Std.parseInt(r1.matched(2)));
 			}
@@ -164,131 +202,7 @@ class Print2
 			return part;
 		});
 	}//---------------------------------------------------;
-	/**
-	   Create a style
-	   @param	no Index from 0+
-	   @param	fg Foreground color
-	   @param	bg Background color (without the bg_ prefix)
-	   @param	left Left Strings e.g. " [ "
-	   @param	right Right Strings
-	**/
-	public function style(no:Int, fg:String, ?bg:String, ?left:String, ?right:String)
-	{
-		styles[no] = {
-			fg:fg,
-			bg:bg,
-			l:left,
-			r:right
-		};
-	}//---------------------------------------------------;
-	
-	/**
-	   Print Styled Text.
-	   - Puts Newline at the end
-	   - If string ends with `@n` then NO NEWLINE
-	   Make sure you set some styles with style(..);
-	   examples:
-	      prints( "id:{0}  title:{1:10} | end ", ["001", "Entry name one"] ) =>
-			"id:001  title:Entry nam- | end"
-		  prints( "id:{0}  title:{1} | {2} ", ["002", "Entry name two", "end"] ) =>
-			"id:002  title:Entry name two | end"
-		  (-1) negative ID for no styling.
-			
-	   @param	str Input String. {n} Will use style n , {0:X} will apply padding with X length
-	   @param	A Strings here will be printed IN ORDER whenever a {n} occurs
-	**/
-	//public function print1(str:String, A:Array<String>)
-	//{
-		/*
-		var c:Int = 0;
-		var r = ~/\{(-?\d+):?(-?\d+)?\}/g;
-		var B:Array<String> = [];
 
-		var nl:Bool = true;
-		if (str.substr( -2) == NO_NEWLINE) {
-			str = str.substr(0, -2);
-			nl = false;
-		}
-
-		var _col = r.map(str, (r1)->
-		{
-			var part = A[c++];
-			
-			if (r1.matched(2) != null) { // Some padding is required. 
-				part = StrT.padString(part, Std.parseInt(r1.matched(2)));
-			}
-			
-			B.push(part);
-			
-			var ind = Std.parseInt(r1.matched(1));
-			if (ind < 0) { // Negative Index : no style at all
-				return part; 
-			}
-			
-			// Proceed building the final string
-			var st = styles[ind];
-			var f = try T.COLORS_FG.get(st.fg) catch (e:Error) {
-				trace('print2() : Style Invalid Index [$ind]'); return ":INDEX_ERROR:";
-			}
-			if (st.bg != null) f += T.COLORS_BG.get(st.bg);
-			if (st.l != null) f += '${st.l}';
-			f += part;
-			if (st.r != null) f += '${st.r}';
-			f += Terminal._RESET_ALL;
-			return T.sprintf(f);
-		});
-	
-		T.print(g_leftpad  + _col);
-		if(nl) T.endl();
-		
-		var i = 0;
-		return r.map(str, r->B[i++]); // Create and return the no color string
-		*/
-	//}//---------------------------------------------------;
-
-	/**
-	    Another markup syntax
-		- Puts Newline at the end
-		- If string ends with `@n` then NO NEWLINE
-		- Styles need to be set
-		- Produces and returns the non-colorized string (useful for logging)
-		e.g.
-		print2('|1|Extracting| File into |2|folder|');
-	**/
-	public function print2(str:String):String
-	{
-		var r = ~/\|(\d+\|.+?)\|/g;
-		var A:Array<String> = [];
-		var nl:Bool = true;
-		if (str.substr( -2) == NO_NEWLINE) {
-			str = str.substr(0, -2);
-			nl = false;
-		}
-		
-		var _col = r.map(str, (r1)-> 
-		{
-			var ss = r1.matched(1); 
-			var _a = ss.indexOf('|');
-			var _num = ss.substr(0, _a);
-			var _str = ss.substr(_a + 1); 
-			A.push(_str);
-			var st = styles[Std.parseInt(_num)];
-			var _ret = try T.COLORS_FG.get(st.fg) catch (e:Error) {
-				trace('print2() : Style Invalid Index [$_num]'); return ":INDEX_ERROR:";
-			}
-			if (st.bg != null) _ret += T.COLORS_BG.get(st.bg);
-			_ret += _str;
-			_ret += Terminal._RESET_ALL;
-
-			return _ret;
-		});
-		
-		T.print(_col);
-		if(nl) T.endl();
-				
-		var i = 0;
-		return r.map(str, r->A[i++]); // Create and return the no color string
-	}//---------------------------------------------------;
 
 		
 	
@@ -320,8 +234,7 @@ class Print2
 	/**
 	   Initialize a Table | CSV Data
 	   >> MAKE SURE to create a table at the start of a line  <<
-	   @param	DATA Align:{L,C,R},Width:Int,?LeftPad:Int | .. same
-				e.g. "L,20,2|R,20|C,30,3"
+	   @param	DATA Align:{L,C,R},Width:Int,?LeftPad:Int | .. same | e.g. "L,20,2|R,20|C,30,3"
 	**/
 	public function table(DATA:String)
 	{
@@ -334,9 +247,9 @@ class Print2
 			var w = Std.parseInt(D[1]);
 			var pad = Std.parseInt(D[2]);
 			var al = switch(D[0]){
-				case "R": "right";
-				case "C": "center";
-				default : "left";
+				case "R": "r";
+				case "C": "c";
+				default : "l";
 			};
 			_table.push({
 				align:al,
@@ -373,14 +286,15 @@ class Print2
 	/**
 	   Write to a <Table Cell>
 	   * DOES NOT INCREMENT ROW *
-	   * If you want colors, do it manually beforehand *
-	   @param	text 
+	   * If you want colors, do it manually beforehand, it messes with width-pad *
+	   @param	text Text to put
 	   @param	cell Cell index, starting at 1. Auto = 0 (next available). WARNING will stop at the last one.
+	   @param	charpad Character for rest of spaces in the table cell. Default is blank.
 	**/
-	public function tc(text:String, ind:Int = 0)
+	public function tc(text:String, ind:Int = 0, charpad:String = " ")
 	{
 		if (_table == null) throw "Table not defined";
-		if (ind == 0) ind = _tActiveCell; else ind--;
+		if (ind == 0) ind = _tActiveCell; else ind--; // (starting at index 1) -1 to get to 0
 		if (ind >= _table.length) {
 			trace('Table Cell ($_tActiveCell) Overflow, for text ($text)');
 			return;
@@ -389,8 +303,8 @@ class Print2
 		T.back(_table_width + lpad + 1);	// Go back way left, to the start of the parent
 		if (lpad > 0) T.forward(lpad);
 		if (d.xpos > 0) T.forward(d.xpos); // I need to check because even 0 value will increment 1
-		T.print(StrT.padString(text, d.width, d.align));
-		_tActiveCell++;
+		T.print(StrT.padString(text, d.width, d.align.toLowerCase(), charpad));
+			_tActiveCell++;
 	}//---------------------------------------------------;
 	
 	/**

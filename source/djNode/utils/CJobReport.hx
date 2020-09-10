@@ -37,16 +37,15 @@ import js.Node;
 
 class CJobReport 
 {
-
 	// Don't update the main job progress too often, if multiple tasks
 	// are reporting progress at once. Limit to this time minimum.
 	public static var UPDATE_MIN_TIME:Float = 0.16;
 	// Bullets/Identifiers before writing job or task progress
-	public static var PREFIX_HED = '~yellow~>>~!.~ ';
-	public static var PREFIX_ONE = '~cyan~==~!.~ ';
-	public static var PREFIX_TWO = '~cyan~ >~!.~ ';
+	public static var PREFIX_HED = '<yellow>>><!fg> ';
+	public static var PREFIX_ONE = '<cyan>==<!fg> ';
+	public static var PREFIX_TWO = '<cyan> ><!fg> ';
 	public static var PROGRESS_BAR_LEN = 32;
-	public static var PROGRESS_BAR_COL = "darkgreen";
+	public static var PROGRESS_BAR_COL = TColor.darkgreen;
 	
 	// Pointer to the job
 	var job:CJob;
@@ -117,6 +116,7 @@ class CJobReport
 		}
 	}//---------------------------------------------------;
 	
+	
 	// -
 	function onJobStatus(status:CJobStatus, j:CJob)
 	{
@@ -139,12 +139,12 @@ class CJobReport
 					{
 						var inf = j.info;
 						headerLen = j.info.length;
-						inf = ~/\[/.replace(inf, "~yellow~");
-						inf = ~/\]/.replace(inf, "~!.~");
-						T.printf(PREFIX_HED + inf).endl();
+						inf = ~/\[/.replace(inf, "<yellow>");
+						inf = ~/\]/.replace(inf, "<!fg>");
+						T.ptag(PREFIX_HED + inf).endl();
 					}else{
 						headerLen = j.sid.length;
-						T.printf(PREFIX_HED + j.sid).endl();
+						T.ptag(PREFIX_HED + j.sid).endl();
 					}
 					
 				}
@@ -152,7 +152,6 @@ class CJobReport
 				T.savePos();
 				HTool.sCall(onStart, j);
 				timeLastProgUpdate = 0;
-				
 				printSynopticInit();
 
 			case CJobStatus.complete:
@@ -188,7 +187,7 @@ class CJobReport
 				{
 					gotoTaskLine(t);
 					// First permanent line of a TASK DETAILED
-					T.printf(PREFIX_TWO + strname + ' ~darkgray~..~!.~'); // <-- TASK PROGRESS FORMATTING
+					T.ptag(PREFIX_TWO + strname + ' <darkgray>..<!fg>'); // <-- TASK PROGRESS FORMATTING
 					slotCursorJump[t.SLOT] = 7 + strname.length;
 					return;
 				}
@@ -196,7 +195,7 @@ class CJobReport
 				// Just print the Task Name/Desc on the THIRD line
 				// First two are JOB Progress
 				T.restorePos().down(2).clearLine();
-				T.printf(PREFIX_TWO + strname).resetFg();
+				T.ptag(PREFIX_TWO + strname).resetFg();
 				
 			case CJobStatus.taskEnd:
 
@@ -217,8 +216,8 @@ class CJobReport
 	function printSynopticInit()
 	{
 		T.pageDown(2);
-		T.printf(PREFIX_ONE + 'Tasks Completed :\n');
-		T.printf(PREFIX_ONE + 'Total Progress  :\n');
+		T.ptag(PREFIX_ONE + 'Tasks Completed :\n');
+		T.ptag(PREFIX_ONE + 'Total Progress  :\n');
 		jobCursorJump = 21; // manual number
 		
 		/* example:
@@ -237,7 +236,7 @@ class CJobReport
 	{
 		// Tasks Completed ::
 		T.restorePos().forward(jobCursorJump);
-		T.printf('~yellow~${job.TASKS_P_COMPLETE}/${job.TASKS_P_TOTAL}'); 
+		T.ptag('<yellow>${job.TASKS_P_COMPLETE}/${job.TASKS_P_TOTAL}'); 
 		
 		// Progress Bar and Percent ::
 		T.restorePos().down().forward(jobCursorJump);
@@ -258,7 +257,7 @@ class CJobReport
 	// Helper, prints progress percent
 	function printPercent(p:Float,float:Bool = false)
 	{
-		T.print('[').fg('yellow');
+		T.print('[').fg(yellow);
 		if (float){
 			T.print(Std.string(Math.round(p * 10) / 10));
 		}else{
@@ -273,20 +272,20 @@ class CJobReport
 	{
 		T.restorePos();
 		T.cursorShow();
-		T.up(0).forward(headerLen + 1);
+		T.up(0).forward(headerLen + 4);
 		T.clearScreen(0);
 		
 		if (flag_print_header)
 		{
 			T.print(' : ');
 			if (success){
-				T.fg('green').println("[Complete]").resetFg();
+				T.fg(green).println("[Complete]").resetFg();
 				HTool.sCall(onComplete, job);
 			}
 			else{
-				T.fg('red').print("[Failed] ");
+				T.fg(red).print("[Failed] ");
 				if (FLAG_ERROR_DETAIL) {
-					T.fg("darkgray");
+					T.fg(darkgray);
 					T.print(job.ERROR);
 				}
 				T.resetFg().endl();

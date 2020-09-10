@@ -2,14 +2,13 @@ package;
 import djNode.BaseApp;
 import djNode.Keyboard;
 import djNode.Terminal;
+import djNode.utils.Print2;
 
-/**
- * ...
- * @author John Dimi
- */
+
 class TestTemplate 
 {
 	var T:Terminal;
+	var P:Print2;
 	var onComplete:Void->Void;
 	var action_text:Array<String> = [];
 	var action_func:Array<Void->Void> = [];
@@ -18,9 +17,10 @@ class TestTemplate
 	
 	public function new(title:String) 
 	{
+		P = new Print2();
 		T = BaseApp.TERMINAL;
-//		T.pageDown();
-		T.endl().drawLine().H2(title + "- Tests:");
+		//T.endl().drawLine().H2(title + "- Tests:");
+		P.H('Tests:');
 	}//---------------------------------------------------;
 	
 	/**
@@ -42,7 +42,7 @@ class TestTemplate
 	
 	function expect(txt:String)
 	{
-		T.fg("cyan").print('>>> ' + txt).resetFg().endl();
+		T.fg(cyan).print('>>> ' + txt).resetFg().endl();
 	}//---------------------------------------------------;
 	
 	
@@ -56,13 +56,13 @@ class TestTemplate
 		
 		T.endl();
 		
-		T.fg("yellow").print('+ ' + action_text[current]).resetFg().endl();
+		T.fg(yellow).print('+ ' + action_text[current]).resetFg().endl();
 		action_func[current]();
 		
 		if (action_waits[current] == "key")
 		{
 			T.savePos();
-			T.fg("magenta").println("[Press Key]").resetFg();
+			T.fg(magenta).println("[Press Key]").resetFg();
 			Keyboard.onData = function(d) {
 				T.restorePos();
 				T.clearLine();
@@ -78,7 +78,7 @@ class TestTemplate
 	
 	function complete()
 	{
-		T.printf("\n~darkcyan~ >>> Test end. ~!~\n");
+		T.ptag("\n<darkcyan> >>> Test end. <!>\n");
 		if (onComplete != null) onComplete();
 	}//---------------------------------------------------;
 	

@@ -10,7 +10,7 @@ package djA;
 
 import js.node.ChildProcess;
 
-class PsimoMount
+class PismoMount
 {
 	static var EXE = "PFM.exe";
 	

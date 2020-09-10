@@ -107,6 +107,7 @@ class LOG
 	
 	/**
 	   Pipe all traces to Log.log()
+	   @param produceStdout Also write to stdout
 	**/
 	public static function pipeTrace(produceStdout:Bool = false)
 	{

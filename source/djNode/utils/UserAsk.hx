@@ -34,8 +34,8 @@ class UserAsk
 		// Write options, starting at 1
 		for (i in choices) {
 			maxoptions++;
-			t.fg(Color.yellow).print(' $maxoptions. ');
-			t.fg(Color.white).print(i).endl().reset();
+			t.fg(yellow).print(' $maxoptions. ');
+			t.fg(white).print(i).endl().reset();
 		}
 	
 		t.reset().print(' Select one from [1-$maxoptions] : ');
@@ -58,7 +58,7 @@ class UserAsk
 			if (userSel > 0 && userSel <= maxoptions)
 			{
 				// If I tell it to print k, it will print the \n as well
-				t.fg(Color.green).print('$userSel').reset().endl();
+				t.fg(green).print('$userSel').reset().endl();
 				Keyboard.stop();
 				//callback(userSel);
 				HTool.tCall(callback, userSel);
@@ -82,21 +82,21 @@ class UserAsk
 	{
 		var t = BaseApp.TERMINAL;
 		if (question != null) {
-			t.fg(Color.white);
+			t.fg(white);
 			t.print(' $question');
 		}
-		t.fg(Color.yellow);
+		t.fg(yellow);
 		t.print(' (Y/N) : ');
 
 		if(callback!=null) 
 		{
 			Keyboard.onData = function(k:String) {
 				if (k.toLowerCase() == "y") {
-					t.fg(Color.green).print("Y").reset();
+					t.fg(green).print("Y").reset();
 					Keyboard.stop();
 					callback(true);
 				}else if (k.toLowerCase() == "n") {
-					t.fg(Color.red).print("N").reset();
+					t.fg(red).print("N").reset();
 					Keyboard.stop();
 					callback(false);
 				}};

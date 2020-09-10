@@ -3,11 +3,7 @@ import djNode.task.CJob;
 import djNode.task.CTask;
 import djNode.task.CTestTask;
 
-/**
- * Test Tasks and Jobs
- * ...
- * @author John Dimi
- */
+
 class TestJobSystem extends TestTemplate
 {
 
@@ -70,18 +66,18 @@ class TestJobSystem extends TestTemplate
 	{
 		if (a == CTaskStatus.start)
 		{
-			T.fg("green").print("[START] = ").resetFg().println(b.toString());
+			T.fg(green).print("[START] = ").resetFg().println(b.toString());
 		}else
 		
 		if (a == CTaskStatus.complete)
 		{
-			T.fg("magenta").print("[END]   = ").resetFg().println(b.toString());
+			T.fg(magenta).print("[END]   = ").resetFg().println(b.toString());
 			
 		}else
 		
 		if (a == CTaskStatus.progress && flag_report_progress) 
 		{
-			T.print('Progress Task UID(${b.uid}) ').fg("yellow").println('[${b.PROGRESS}%]').resetFg();
+			T.print('Progress Task UID(${b.uid}) ').fg(yellow).println('[${b.PROGRESS}%]').resetFg();
 		}
 	}//---------------------------------------------------;
 	

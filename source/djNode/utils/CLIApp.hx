@@ -205,7 +205,9 @@ class CLIApp
 			if (!FLAG_LOG_QUIET){
 				LOG.log('ExecSync : $path');
 			}
-			return ChildProcess.execSync(path);
+			// Some apps will write to stderr and it will make it print to app terminal because it was piped
+			// Set it to ignore
+			return ChildProcess.execSync(path, {stdio:['ignore', 'pipe', 'ignore']});
 		}catch (e:Dynamic)
 		{
 			return null;

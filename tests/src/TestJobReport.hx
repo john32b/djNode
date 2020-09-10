@@ -3,10 +3,7 @@ import djNode.task.CJob;
 import djNode.task.CTestTask;
 import djNode.utils.CJobReport;
 
-/**
- * ...
- * @author John Dimi
- */
+
 class TestJobReport extends TestTemplate
 {
 
@@ -36,9 +33,8 @@ class TestJobReport extends TestTemplate
 			
 			T.println("Testing a few tasks with DETAILED progress view.");
 			expect("Tasks should report progress individually");
-			expect("Custom user info at beggining and end");
 	
-			var j = new CJob("Testing multiple progress report");
+			var j = new CJob("Testing multiple concurrent progress");
 				j.onComplete = doNext;
 				j.MAX_CONCURRENT = 3;
 				j.addAsync(new CTestTask(1200,'Compressing File 1'));
@@ -48,21 +44,17 @@ class TestJobReport extends TestTemplate
 				j.addAsync(new CTestTask(1700,'Compressing File 5'));
 				j.add(new CTestTask(800, 'Finalizing'));
 			var report = new CJobReport(j, true);
-			report.onStart = function(j){
-				T.println("Custom user code, onStart()");
-			}
-			report.onComplete = function(j){
-				T.println("Custom use code, onComplete()");
-			}
+				report.onStart = function(j){
+					// Custom User Code
+				}
+				report.onComplete = function(j){
+					// Custom User Code
+				}
 			j.start();
 		
 		}, "halt");
 		
-		
 		doNext();
-		
 	}//---------------------------------------------------;
-	
-	
 	
 }// --
