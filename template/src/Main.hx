@@ -16,14 +16,20 @@ class Main extends BaseApp
 		// Initialize Program Information here.
 		PROGRAM_INFO = {
 			name:"Template",
-			version:"0.1",
-			info:""
+			version:"0.1"
 		};
 		
 		// Initialize Program Arguments here.
 		// ARGS.requireAction = "false";
 		// ARGS.inputRule = "no";
-		// ...
+		// ARGS.requireAction = true;
+		// ARGS.Actions = [
+			//['c', 'Compress a file'],
+			//['d', 'Decompress a file\nFile will be decompressed in the same folder'],
+		//];
+		//ARGS.Options = [
+			//['t', 'Set Temp Folder', '1']
+		//];
 		
 		super.init();
 	}//---------------------------------------------------;
@@ -33,6 +39,14 @@ class Main extends BaseApp
 	override function onStart() 
 	{
 		printBanner();
+		
+		//switch (argsAction)
+		//{
+			//case 'c':
+				//T.print(" > About to Compress file : " + this.argsInput[0]).endl();
+			//case 'd':
+				//T.print(" > About to Decompress file : " + this.argsInput[0]).endl();
+		//}
 	}//---------------------------------------------------;
 	
 	// --

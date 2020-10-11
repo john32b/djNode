@@ -1,16 +1,15 @@
 /********************************************************************
  * Extra Print Functions
- * 
+ *
  * - Basic Tables
- * - Basic Header and Text 
- * 
- * 
- * 
- * TODO IMPROVEMENTS:
+ * - Basic Header and Text, printing with a left margin.
+ * - Print using Template Strings
+ *
+ *
+ * DEV. TODO IMPROVEMENTS:
  * ------------------
- * 
- * 	- Make table tc() work with inline tags
- * 
+ * 	- Make table tc() work with inline tags ?
+ *
  *******************************************************************/
 
 package djNode.utils;
@@ -21,18 +20,16 @@ import js.lib.Error;
 
 @:dce
 @:access(djNode.Terminal)
-class Print2 
+class Print2
 {
-	public static final NO_NEWLINE = "@n";
-	
 	// Pointer to the global Terminal Object
 	// Public in case you need it?
 	public var T(default, null):Terminal;
-	
+
 	// Global Print Padding for (table,p,list)
 	// Setting a header sets this, or you can set this manually
 	public var lpad:Int = 0;
-	
+
 	/**
 	   USERSET
 	   Header styles used in h() function
@@ -51,7 +48,7 @@ class Print2
 			pad0:4, pad1:7, line:null
 		}
 	];
-	
+
 	/**
 	   USERSET
 	   Styles uses in the ps() function
@@ -61,15 +58,15 @@ class Print2
 		'<:green,white>[ {1} ]<!>',
 		'<:red,white>[ {1} ]<!>'
 	];
-	
+
 	//====================================================;
-	
-	public function new() 
+
+	public function new()
 	{
 		T = BaseApp.TERMINAL;
 	}//---------------------------------------------------;
-	
-	
+
+
 	/**
 	 * Print Header -- From Predefined Template Source --
 	 * Basically the same as pt(), but applies paddings as well
@@ -81,7 +78,7 @@ class Print2
 		var s = H_STYLES[size];
 		lpad = s.pad0;
 		ptem(s.templ, text);
-		
+
 		if (s.line != null)
 		{
 			var r = s.line.split(':');
@@ -89,7 +86,7 @@ class Print2
 			if (l == 1) {
 				l = T.PARSED_NOTAG.length;
 			}
-			if (l > 0) 
+			if (l > 0)
 			{
 				T.fg(TColor.createByName(r[1]));
 				if (lpad > 0) T.forward(lpad);
@@ -99,18 +96,18 @@ class Print2
 		}
 		lpad = s.pad1;
 	}//---------------------------------------------------;
-	
+
 	/**
 	 * Print Normal Text. Supports <tags>
 	 * !Assumes cursor at newline
 	 */
 	public function p(text:String):Print2
-	{	
+	{
 		if (lpad > 0) T.forward(lpad);
 		T.ptag(text).endl();
 		return this;
 	}//---------------------------------------------------;
-	
+
 	/**
 	 * New Line
 	 * @return
@@ -119,8 +116,8 @@ class Print2
 	{
 		T.endl(); return this;
 	}//---------------------------------------------------;
-	
-	
+
+
 	/**
 	 * Draw a line
 	 * !Assumes cursor at newline
@@ -133,7 +130,7 @@ class Print2
 		T.println(StrT.line(len));
 		return this;
 	}//---------------------------------------------------;
-	
+
 	/**
 	    Print Styled - Another markup syntax to print text
 		Format: "|index|text| |index2|text| |index2|othertext"
@@ -147,16 +144,16 @@ class Print2
 	{
 		var r = ~/\|(\d+\|.+?)\|/g;
 		var _col = r.map(str, (r1)-> {
-			var ss = r1.matched(1); 
+			var ss = r1.matched(1);
 			var _a = ss.indexOf('|');
 			var _ind = Std.parseInt(ss.substr(0, _a));
-			var _str = ss.substr(_a + 1); 
+			var _str = ss.substr(_a + 1);
 			return parseTempl(PS_STYLES[_ind], _str);
 		});
 		p(_col);
 		return T.PARSED_NOTAG;
 	}//---------------------------------------------------;
-	
+
 	/**
 	 * Print Text through a template. A template string is a string with {1}, {2}, {3} tags
 	 * Check parseTempl() for help
@@ -165,8 +162,8 @@ class Print2
 	{
 		p(parseTempl(tem, t1, t2, t3));
 	}//---------------------------------------------------;
-	
-	
+
+
 	/**
 	 * Parse a Template String. A template string is a string with {1}, {2}, {3} tags
 	 * It replaces these tags with the String Arguments
@@ -195,23 +192,23 @@ class Print2
 				case 3: t3;
 				default : throw "Templates support up to three(3) capture groups";
 			}
-			if (r1.matched(2) != null) { // Some padding is required. 
+			if (r1.matched(2) != null) { // Some padding is required.
 				part = djA.StrT.padString(part, Std.parseInt(r1.matched(2)));
 			}
-			
+
 			return part;
 		});
 	}//---------------------------------------------------;
 
 
-		
-	
+
+
 	/********************************************************************
 	 * TABLES
 	 * ------
 	 * - Define column areas and then print text to rows/cells
 	 * - Purpose is to quickly align text fields in columns
-	 * 
+	 *
 	 * Example:
 	 * --------
 	 * 	.table('C,10,2|C,20,5');
@@ -221,16 +218,16 @@ class Print2
 	 *  .tr(['data0','data1']);
 	 *  .tc('data0');
 	 *  .tc('data1'); .tr();
-	 * 
+	 *
 	 *******************************************************************/
-	
+
 	// Table Data | {align:String,width:Int,pad:Int,xpos:Int} | xpos from table start x
 	var _table:Array<Dynamic> = null;
 	// Table Active cell | Starts at 0
 	var _tActiveCell:Int;
 	// Total table width (pads + widths)
 	var _table_width:Int;
-	
+
 	/**
 	   Initialize a Table | CSV Data
 	   >> MAKE SURE to create a table at the start of a line  <<
@@ -238,8 +235,13 @@ class Print2
 	**/
 	public function table(DATA:String)
 	{
+		// Example : "L,20,2|R,12|C,30,3"
+		// Column 1 : L,20,2 == Left align,  20 width , 2 pad from left
+		// Column 2 : R,12   == Right align, 12 width , no pad from left
+		// Column 3 : C,30,3 == Right align, 30 width , 3 from left
+		
 		_table = [];
-		_tActiveCell = 0; // Active cell 
+		_tActiveCell = 0; // Active cell
 		var xpos = 0; // For individual cells
 		for (c in DATA.split('|')) {
 			var D = c.split(',');
@@ -262,7 +264,7 @@ class Print2
 		_table_width = xpos;
 		//trace("Declared table", _table,_table_width);
 	}//---------------------------------------------------;
-	
+
 	/**
 	   Put an entire row of data at current row of table
 	   * INCREMENTS ROW *
@@ -282,7 +284,7 @@ class Print2
 		for (c in cells) tc(c);
 		T.endl();
 	}//---------------------------------------------------;
-	
+
 	/**
 	   Write to a <Table Cell>
 	   * DOES NOT INCREMENT ROW *
@@ -306,7 +308,7 @@ class Print2
 		T.print(StrT.padString(text, d.width, d.align.toLowerCase(), charpad));
 			_tActiveCell++;
 	}//---------------------------------------------------;
-	
+
 	/**
 	   Draw a decorative line (autowidth to full table)
 	   >> Assumes cusrsor ready at new line <<
@@ -317,5 +319,5 @@ class Print2
 		line(_table_width);
 		_tActiveCell = 0;
 	}//---------------------------------------------------;
-	
+
 }// --

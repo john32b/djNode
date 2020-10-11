@@ -1,6 +1,5 @@
 # Build release
 
--lib hxnodejs
 -lib djNode
 -cp src/
 -main Main
