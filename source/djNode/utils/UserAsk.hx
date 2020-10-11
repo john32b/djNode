@@ -9,6 +9,7 @@ import djNode.tools.LOG;
 /**
  * Utilities, User Interaction
  */
+@:dce
 class UserAsk
 {
 	// Pointer to the main terminal object

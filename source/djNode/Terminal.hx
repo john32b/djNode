@@ -448,6 +448,8 @@ class Terminal
 	   <dim> = Set Dimmed Text <!dim> = Reset Dimmed Text
 	   <underl> = Set Underling <!underl> = Reset Underline
 	   <blink> = Set Blink Text <!blink> = Reset Blin Text
+	   <cs> = Cursor Save Pos
+	   <cr> = Cursor Restore Pos
 	   
 	   ---------------
 	   You can put multiple tags inside a < >, separate with comma.
@@ -474,6 +476,8 @@ class Terminal
 					case "!dim" : _RESET_DIM;
 					case "!blink" : _RESET_BLINK;
 					case "!underl" : _RESET_UNDERL;
+					case "cs" : '\x1B[s';
+					case "cr" : '\x1B[u';
 					default : 
 						// Check BG
 						if (p.indexOf(':') == 0) {

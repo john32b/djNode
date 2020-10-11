@@ -1,11 +1,12 @@
  /**--------------------------------------------------------
- * FileTool.hx 
+ * FileTool.hx
  * @author: johndimi, <johndimi@outlook.com>
  * Various Helpers for File and Path operations
  ========================================================*/
- 
+
 package djNode.tools;
 
+import djNode.BaseApp;
 import js.lib.Error;
 import js.Node;
 import js.node.Buffer;
@@ -25,21 +26,21 @@ class FileTool
 	   @param	inPath The path to be created
 	   @throws String
 	**/
-	public static function createRecursiveDir(inPath:String) 
-	{	
+	public static function createRecursiveDir(inPath:String)
+	{
 		#if !js
 		throw "Not supported yet";
 		#end
-		
+
 		var paths:Array<String> = Path.normalize(inPath).split(Path.sep);
 		var cM = paths.length;
 		if (cM <= 0) throw 'Path "$inPath" is invalid';
 		var c = 0;
-		var p1 = "";	// Cummulative path for iterations 
+		var p1 = "";	// Cummulative path for iterations
 		// Check to see if the path is drive path (win32 only)
-		
+
 		// FIXME: I need to update this for linux too
-		if (paths[0].indexOf(":") > 0) 
+		if (paths[0].indexOf(":") > 0)
 		{
 			try {
 				Fs.statSync(paths[0]);
@@ -57,7 +58,7 @@ class FileTool
 			c++;
 		} catch (e:Error) throw 'Cannot create "$inPath"';
 	}//---------------------------------------------------;
-	
+
 	/**
 	* Remove directory recursively.
 	* + Deletes all files and subfolders
@@ -80,7 +81,7 @@ class FileTool
 			Fs.rmdirSync(dir_path);
 		}
 	}//---------------------------------------------------;
-	
+
 	/**
 	 * Check to see if the program can write to target folder
 	 */
@@ -111,10 +112,10 @@ class FileTool
 		  //W_OK: 2,
 		  //X_OK: 1,
 		  //UV_FS_COPYFILE_EXCL: 1,
-		  //COPYFILE_EXCL: 1 
+		  //COPYFILE_EXCL: 1
 	}//---------------------------------------------------;
-	
-	
+
+
 	/**
 	   Since nodeJS is deprecating existsSync. So I wrote this.
 	   @param	path
@@ -129,7 +130,7 @@ class FileTool
 		}
 		return true;
 	}//---------------------------------------------------;
-	
+
 	/**
 	 * @SYNC
 	 * Move a file and callback when done.
@@ -138,29 +139,29 @@ class FileTool
 	 * @param	onComplete
 	 * @param	onProgress
 	 */
-	public static function moveFile(source:String, dest:String) 
+	public static function moveFile(source:String, dest:String)
 	{
 		#if !js
 			throw "Not supported yet";
 		#end
-		
+
 		try{
 			Fs.renameSync(source, dest);
 		}catch (e:Error)
 		{
 			copyFileSync(source, dest);
-			
+
 			try{
 				Fs.unlinkSync(source);
 			}catch (e:Error){
 				LOG.log('Could not delete "$source" while moving.', 3);
 			}
 		}
-		
+
 	}//---------------------------------------------------;
 
-	
-	
+
+
 	public static function copyFile(source:String, dest:String, callback:String->Void)
 	{
 		var r = Fs.createReadStream(source);
@@ -168,9 +169,9 @@ class FileTool
 		var _c = false;
 		var done = (e:Error)->{
 			if (!_c){
-				if (e != null) 
+				if (e != null)
 				callback(e.message);
-					else 
+					else
 				callback(null);
 			}
 			_c = true;
@@ -180,33 +181,33 @@ class FileTool
 		w.once('close', done);
 		r.pipe(w);
 	}//---------------------------------------------------;
-	
-	
+
+
 	/**
 	 * @SYNC
 	 * Copies a file. Destination will be created or overwritten
 	 * @param	source
 	 * @param	dest
 	 */
-	public static function copyFileSync(source:String, dest:String) 
-	{	
+	public static function copyFileSync(source:String, dest:String)
+	{
 		// SYNC:
 		Fs.writeFileSync(dest, Fs.readFileSync(source));
-		
+
 		/*
 		// ASYNC:
 		var _in  = Fs.createReadStream(source);
 		var _out = Fs.createWriteStream(dest);
 		_in.pipe(_out);
 		_in.once("end", function() {
-			_in.unpipe(); 
+			_in.unpipe();
 			_out.end();
 			onComplete();
-		});	
+		});
 		*/
 	}//---------------------------------------------------;
 
-	
+
 	/**
 	   Appends a part of a file into another file.
 	   @param	inputFile Source file
@@ -216,14 +217,14 @@ class FileTool
 	   @param	callback (s:String) if not NULL, then ERROR
 	**/
 	public static function copyFilePart(
-				inputFile:String, outputFile:String, 
-				readStart:Int = 0, readLen:Int = 0, 
+				inputFile:String, outputFile:String,
+				readStart:Int = 0, readLen:Int = 0,
 				callback:String->Void):Void
 	{
 		var dest_stream:WriteStream;
 		var BUFFERSIZE:Int = 65536;
 		var inputSize:Int = 0;
-		
+
 		try{
 			inputSize = Std.int(Fs.statSync(inputFile).size);
 		}catch (e:Error){
@@ -255,7 +256,7 @@ class FileTool
 			while (bytesLeft > 0) {
 				if (bytesLeft >= BUFFERSIZE) {
 					buffer = Buffer.allocUnsafe(BUFFERSIZE);
-					
+
 				}else{
 					buffer = Buffer.allocUnsafe(bytesLeft);
 				}
@@ -268,41 +269,41 @@ class FileTool
 			dest_stream.once("close", ()->callback(null));
 		});
 	}//---------------------------------------------------;
-	
-	
-	
-	
+
+
+
+
 	/**
 	 * Returns the full path filename of every file in a folder
 	 * PRE: Folder Exists
 	 * @param inPath Get files from this folder only
 	 * @param fullPath If true the result Array will include the full path of each file. False for just the filenames
-	 */ 
-	public static function getFileListFromDir(inPath:String, fullPath:Bool = false):Array<String> 
+	 */
+	public static function getFileListFromDir(inPath:String, fullPath:Bool = false):Array<String>
 	{
 		#if !js
 		throw "Not supported yet";
 		#end
-		
+
 		var allfiles = Fs.readdirSync(Path.normalize(inPath));
 		var ret:Array<String> = [];
 		for (f in allfiles)
 		{
-			if (Fs.statSync(Path.join(inPath, f)).isFile()) 
+			if (Fs.statSync(Path.join(inPath, f)).isFile())
 			{
 				if (fullPath)
-					ret.push(Path.join(inPath, f)); 
+					ret.push(Path.join(inPath, f));
 				else
 					ret.push(f);
 			}
 		}
 		return ret;
 	}//---------------------------------------------------;
-	
+
 	/**
 	   DeepScan a folder for files. Returns <Array> with FullPaths of all files found
 	   @param	rootPath The Root Path to start
-	   @param	ext If set, it will only return files matching these extensions. 
+	   @param	ext If set, it will only return files matching these extensions.
 				Use Lowercase for defining, Matches are Case Insensitive
 				e.g. ['.cue','.mp3']
 	   @return
@@ -310,12 +311,12 @@ class FileTool
 	public static function getFileListFromDirR(rootPath:String, ?ext:Array<String>):Array<String>
 	{
 		var res:Array<String> = [];
-		
+
 		// - Push files to `res` and call again for folders
 		function pushFiles(path:String)
 		{
 			var files = Fs.readdirSync(Path.normalize(path));
-			
+
 			for (f in files)
 			{
 				// File Full Path
@@ -338,34 +339,34 @@ class FileTool
 				}
 			}
 		}// --
-		
+
 		pushFiles(rootPath);
-		
+
 		return res;
 	}//---------------------------------------------------;
-	
-	
-	
-	/** 
-	 * 
+
+
+
+	/**
+	 *
 	 * Basic and fast multiple file getter from folders
 	 * Returns Array<full file path>
 	 * Returns Empty Array if no files found
-	 * 
+	 *
 	   Working:
 	   -------------------
 		(*.*)		-> get all files from folder
 		(*.ext)		-> return all files with 'ext' extension
 		(name.*)	-> return all files with filename "name" and all extensions
 		(*)			-> return extentionless files
-	 
+
 	 **/
 	public static function getFileListFromWildcard(path:String):Array<String>
 	{
 		#if !js
 		throw "Not supported yet";
 		#end
-		
+
 		// The returned object
 		var fileList:Array<String> = new Array();
 		var basePath = Path.dirname(path);
@@ -377,12 +378,12 @@ class FileTool
 			if (baseToGet.length > 1 && baseToGet.indexOf('*') > 0)
 				throw "Advanced search is currently unsupported, use basic [*.*] or [*.ext]";
 		}
-		else 
+		else
 			baseToGet = "*";
 
-		var allfiles = Fs.readdirSync(Path.normalize(basePath));		
+		var allfiles = Fs.readdirSync(Path.normalize(basePath));
 		var stats:Stats;
-		
+
 		for (i in allfiles) {
 			try {
 				stats = Fs.statSync(Path.join(basePath, i));
@@ -390,10 +391,10 @@ class FileTool
 				// LOG.log('Encountered a Locked File! "$i"', 2);
 				continue;
 			}
-			
-			if (stats.isFile()) {		
-				if (baseToGet != "*") 
-					if (exp.match(i)) { 
+
+			if (stats.isFile()) {
+				if (baseToGet != "*")
+					if (exp.match(i)) {
 						if (baseToGet != exp.matched(1)) continue; }
 					else continue;
 				if (extToGet == ".*") { fileList.push(Path.join(basePath,i)); continue; }
@@ -404,9 +405,9 @@ class FileTool
 		// Returns full filepaths
 		return fileList;
 	}//---------------------------------------------------;
-	
+
 	/**
-	 * SYNC - Calculate a File's MD5 
+	 * SYNC - Calculate a File's MD5
 	**/
 	public static function getFileMD5(file:String):String
 	{
@@ -425,22 +426,22 @@ class FileTool
 			Fs.closeSync(fd);
 			return null;
 		}
-		
+
 		Fs.closeSync(fd);
 		return hash.digest('hex');
 	}//---------------------------------------------------;
-	
+
 	/**
 	 * Returns lowercase extension
 	 * e.g. ".mp3",".jpg"
 	 * @param	file
 	 * @return
 	 */
-	public static function getFileExt(file:String):String 
+	public static function getFileExt(file:String):String
 	{
 		return Path.extname(file).toLowerCase();
 	}//---------------------------------------------------;
-	
+
 	/**
 	 * Get file path without the LAST extension
 	 * e.g.  folder/file1.bin.zip -> folder/file1.bin
@@ -448,25 +449,27 @@ class FileTool
 	 * @param	file
 	 * @return
 	 */
-	public static function getPathNoExt(file:String):String 
+	public static function getPathNoExt(file:String):String
 	{
 		return Path.join(Path.parse(file).dir, Path.parse(file).name);
 	}//---------------------------------------------------;
-	
-	
+
+
 	/**
 	   Return the full path of a file that is relative to the application path.
 	   e.g (appFileToFullPath('settings.ini') ==> 'c:\code\application\settings.ini')
 	       where 'c:\code\application' is where the app is
 	   @param	filePath Short Path of file
 	**/
+	@:deprecated("Use BaseApp.app.getAppPathJoin")
 	public static function appFileToFullPath(filePath:String)
 	{
-		return Path.join(Path.dirname(Sys.programPath()), filePath);
+		//return Path.join(Path.dirname(Sys.programPath()), filePath);
+		return BaseApp.app.getAppPathJoin(filePath);
 	}//---------------------------------------------------;
-	
-	
-	
+
+
+
 	/**
 	   Ensures that filename does not exist in the path it is in
 	   by adding a symbol (_) at the end of the filename until unique
