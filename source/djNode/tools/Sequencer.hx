@@ -1,8 +1,6 @@
 /****
  * Sequencer
- * -------
- * johnimi, johndimi@outlook.com
- * -------
+ * ----------
  * @supportedplatforms: nodeJS
  * 
  * A simple sequencer for actions.

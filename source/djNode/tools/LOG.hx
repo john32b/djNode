@@ -3,8 +3,6 @@
  * ----------------------------------------------
  * - General purpose logging tools
  * --------------------------
- * @author: johndimi, <johndimi@outlook.com>
- * 
  * Features:
  * ---------
  *

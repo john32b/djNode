@@ -1,13 +1,13 @@
 {
 	"name": "djNode",
 	"description": "Helpers and Tools for nodejs CLI Apps",
-	"url" : "https://github.com/johndimi/djNode",
+	"url" : "https://github.com/john32b/djNode",
 	"license": "MIT",
 	"tags": ["nodeJs"],
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"classPath": "source/",
 	"releasenote": "",
-	"contributors": ["JohnDimi"],
+	"contributors": ["John32b"],
 	"dependencies": { 
 		"hxnodejs": "",
 		"djA":""

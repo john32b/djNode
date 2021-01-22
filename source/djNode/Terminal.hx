@@ -3,8 +3,7 @@
  * ----------------------------------------------
  * - Useful Terminal functionality wrapper
  * ----------------------------------------------
- * @Author: johndimi, <johndimi@outlook.com>
- * 
+ *
  * Features:
  * ===========
  * . Printing text

@@ -7,6 +7,9 @@ class Main extends BaseApp
 {	
 	override function init():Void 
 	{
+		// Enable cleaner exceptions messages. You need to have the NPM package installed
+		// js.Lib.require('source-map-support').install();
+		
 		// All traces will redirect to LOG object
 		LOG.pipeTrace();
 		LOG.setLogFile("log.txt");

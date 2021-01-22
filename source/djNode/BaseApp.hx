@@ -14,6 +14,14 @@
  * ------------
  * 	- Override init() and set ARGS and PROGRAM_INFO there
  *
+ * Uncaught Exceptions
+ * --------------------
+ *  - Currently , no handler, will crash and display stack , for debugging
+ *  - Install npm package source-map-support | npm install source-map-support
+ *  - In the code do : js.Lib.require('source-map-support').install();
+ *  - This will convert all stack traces to point to haxe files
+ *  - For custom errors you must do : throw new Error("message");
+ * 
  *******************************************************************/
 
 package djNode;
@@ -32,7 +40,7 @@ import djNode.tools.LOG;
 class BaseApp
 {
 	// djNode Version
-	public static inline var VERSION = "0.6";
+	public static inline var VERSION = "0.6.1";
 
 	// Instance
 	public static var app:BaseApp;
@@ -107,37 +115,42 @@ class BaseApp
 	// [0] what to declare options with (-,/)
 	// [1] help string (? or help)
 	@:noCompletion var _sb:Array<String>;
+	
+	// #NEW 0.6.1
+	// Called automatically just before the program exits along with exit CODE
+	// 0=normal exit | 1223=user ctrl+c | other = critical error
+	// Useful sometimes e.g. when you want to close a file handle before a crash
+	// 	!! don't forget to null this and be careful when using it !!
+	public var onExit_:Int->Void;
 
 	//====================================================;
 
 	public function new()
 	{
 		BaseApp.app = this;
-
-		FLAG_USE_SLASH_FOR_OPTION = false;
-
 		LOG.init();
-		TERMINAL = new Terminal();
-		T = TERMINAL;
+		FLAG_USE_SLASH_FOR_OPTION = false;
+		T = TERMINAL = new Terminal();
 
 		// Normal Exit, code 0 is OK, other is Error
-		Node.process.once("exit", function(code) {
-			LOG.log("==> [EXIT] with code " + code);
-			onExit(cast code);
-		});
+		// This will be called on normal exits + uncaught exceptions
+		Node.process.once("exit", onExit);
 
 		// User pressed CTRL+C
 		Node.process.once("SIGINT", function() { Sys.exit(1223); } ); // 1223 : The operation was canceled by the user.
 
-		// JStack Library
-		// Use the JSTACK_NO_SHUTDOWN define to use custom handlers
-		//Node.process.once("uncaughtException", function(err:Dynamic)
-		//{
-			//var e = " Uncaught Exception :: ";
-			//if (Std.is(err, Error)) e += err.message; else e += cast err;
-			//exitError(e);
-		//});
-
+		Node.process.once("uncaughtException", function(err:Dynamic) {
+			
+			#if (!debug)
+			var e = " Critical Error :: ";
+			if (Std.is(err, Error)) e += err.message; else e += cast err;
+			exitError(e);
+			#else
+			onExit(1); // Trigger user shutdown
+			if (Std.is(err, Error)) throw err; // NPM:source-map-support should handle it if present
+			#end
+		});
+		
 
 		// -- Start --
 		try{
@@ -299,15 +312,17 @@ class BaseApp
 	function onStart() {}
 
 	/**
-	  Called whenever the program exists, normally or with errors
+	  Called whenever the program exits, normally or with errors
 	  You can override to clean up things
 	  # Common Codes:
 		- 0 		: The operation completed successfully.
 		- 1 		: Incorrect function ( generic error )
-		- 1223 		: User Cancel
+		- 1223 		: User Cancel (with ctrl+c) 
 	**/
 	function onExit(code:Int)
 	{
+		if (onExit_ != null) onExit_(code);
+		LOG.log("==> [EXIT] with code " + code);
 		LOG.end();
 		T.reset();
 		T.cursorShow(); // Just in case
@@ -556,7 +571,7 @@ typedef AppArguments =
 	inputRule:String,		// no, yes, opt, multi
 	outputRule:String,		// no, yes, opt
 
-	requireAction:Bool,		// An action IS required, either be implicit setting or by file extension
+	requireAction:Bool,		// An action IS required; either by implicit setting or by auto-guessed by file extension
 
 	supportWildcards:Bool,	// If true, <*.*> and <*.ext> will be resolved. Else ERROR
 

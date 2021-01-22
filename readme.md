@@ -1,6 +1,6 @@
 # djNode
 
-**Version:** 0.6 *(2020_10),* **Author:** John Dimi, **License:** MIT  
+**Version:** 0.6.1 *(2021_01),* **Author:** John32B, **License:** MIT  
 **djNode** is a set of tools and helpers for **HAXE**; for creating **nodeJS CLI** applications.
 
 ##  Features  :loudspeaker:
@@ -112,7 +112,7 @@ switch (argsAction)
 
 ### Job/Task System
 
-- djNode offers a simple task system. Where you can create a bunch of tasks, and have a job process them in parallel or sequentially. Checkout [cdcrush](https://github.com/johndimi/cdcrush) for a better usage example
+- djNode offers a simple task system. Where you can create a bunch of tasks, and have a job process them in parallel or sequentially. Checkout [cdcrush](https://github.com/john32b/cdcrush) for a better usage example
 
   ```haxe
   // Creating a JOB with Test Tasks
@@ -139,10 +139,10 @@ switch (argsAction)
 ### Notes :notebook: 
 
 This is mostly personal library that I have used in some projects and tools, like: 
-- cdcrush *(cd game compression)* https://github.com/johndimi/cdcrush
-- romdj *(emulation Rom Builder)* https://github.com/johndimi/romdj
-- djTui *(NodeJS TUI interface library)* https://github.com/johndimi/djTui
-- psxlauncher *(TUI based emulator launcher)* https://github.com/johndimi/psxlauncher
+- cdcrush *(cd game compression)* https://github.com/john32b/cdcrush
+- romdj *(emulation Rom Builder)* https://github.com/john32b/romdj
+- djTui *(NodeJS TUI interface library)* https://github.com/john32b/djTui
+- psxlauncher *(TUI based emulator launcher)* https://github.com/john32b/psxlauncher
 
 :warning: **WARNING** In case the Windows Default Command Line doesn't work use another console emulator like [cmder](http://cmder.net/) (*recommended*)
 

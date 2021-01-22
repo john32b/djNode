@@ -2,8 +2,6 @@
  * 7ZIP 
  * Interface for the CLI app
  * -------
- * johndimi, johndimi@outlook.com
- * -------
  * @requires: 7za.exe, or 7zip installation
  * @supports: nodeJS
  * @platform: windows

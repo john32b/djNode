@@ -2,8 +2,6 @@ package djNode.utils;
 
 /**
  * Progress Bar Functions
- * ...
- * @author John Dimi
  */
 class ProgressBar 
 {

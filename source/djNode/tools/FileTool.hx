@@ -1,6 +1,5 @@
  /**--------------------------------------------------------
  * FileTool.hx
- * @author: johndimi, <johndimi@outlook.com>
  * Various Helpers for File and Path operations
  ========================================================*/
 

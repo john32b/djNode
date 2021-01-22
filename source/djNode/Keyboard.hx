@@ -3,9 +3,7 @@
  * -------------------
  * - Basic Lightweight keyboard helper
  * - Can capture basic keys
- * --------------------
- * @Author: johndimi <johndimi@outlook.com>
- * 
+ *
  *****************************************************/
 
 package djNode;
