@@ -235,9 +235,12 @@ class BaseApp
 			var a = getArgAction(arg);
 			if (a != null)
 			{
-				if (argsAction != null) throw 'You can only set one <action>';
-				argsAction = a[0];
-				continue;
+				// NEW 0.6.1 : Allow multiple Actions, All the following keywords that match an action will be handled as Inputs
+				// if (argsAction != null) throw 'You can only set one <action>';
+				if (argsAction == null) {
+					argsAction = a[0];
+					continue;
+				}
 			}
 
 			// # [input]
