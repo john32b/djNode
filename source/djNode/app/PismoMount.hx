@@ -29,7 +29,7 @@ class PismoMount
 	**/
 	public static function mount(p:String, drive:String = null):String
 	{
-		trace('Mounting "$p"');
+		trace('> Mounting "$p"');
 		// PFM mount -i : Ignore if already mounted
 		if (drive != null)
 		{
@@ -50,10 +50,10 @@ class PismoMount
 		// (?:....) is non capturing
 		var reg = ~/.*(?:\.zip|\.pfo|\.cfs) (.*)/ig;
 		if (reg.match(res1)) {
-			trace('[OK] Mounted in ${reg.matched(1)}');
+			trace('  [OK] Mounted in "${reg.matched(1)}"');
 			return reg.matched(1);
 		}else {
-			trace('[FAIL]');
+			trace('  [FAIL]');
 			return null;
 		}
 	}//---------------------------------------------------;

@@ -27,10 +27,6 @@ class FileTool
 	**/
 	public static function createRecursiveDir(inPath:String)
 	{
-		#if !js
-		throw "Not supported yet";
-		#end
-
 		var paths:Array<String> = Path.normalize(inPath).split(Path.sep);
 		var cM = paths.length;
 		if (cM <= 0) throw 'Path "$inPath" is invalid';
@@ -140,10 +136,6 @@ class FileTool
 	 */
 	public static function moveFile(source:String, dest:String)
 	{
-		#if !js
-			throw "Not supported yet";
-		#end
-
 		try{
 			Fs.renameSync(source, dest);
 		}catch (e:Error)
@@ -270,7 +262,42 @@ class FileTool
 	}//---------------------------------------------------;
 
 
+	/**
+	   Get files from a folder. Supports deep scanning and setting desired extensions
+	   New 2021: Do this but recursively with one function
+	   @param	path
+	   @param	deep True to deep scan
+	   @param	ext Extensions to match. LOWER CASE ONLY! e.g. [".zip",".rar"]
+	   @return  Returns fullpaths
+	**/
+	public static function getFiles(path:String, deep:Bool = false, ext:Array<String> = null):Array<String>
+	{
+		var FIN = Fs.readdirSync(path);
+		var FOUT:Array<String> = [];
+		for (f in FIN)
+		{
+			var fullfile = Path.join(path, f);
+			var stat = try Fs.statSync(fullfile) catch (_) continue; // Probably some not accessible file/folder, like `System Volume Information`
+			
+			if (stat.isFile())
+			{
+				// Do I have an extension filter? Check
+				if (ext != null && ext.indexOf(Path.extname(f).toLowerCase()) < 0)
+					continue;
 
+				FOUT.push(fullfile);
+			}
+			else if (stat.isDirectory())
+			{
+				if(deep) FOUT = FOUT.concat(getFiles(fullfile, deep, ext));
+			}else
+			{
+				continue;
+			}
+		}
+		
+		return FOUT;
+	}//---------------------------------------------------;
 
 	/**
 	 * Returns the full path filename of every file in a folder
@@ -278,12 +305,9 @@ class FileTool
 	 * @param inPath Get files from this folder only
 	 * @param fullPath If true the result Array will include the full path of each file. False for just the filenames
 	 */
+	@:deprecated("Use getFiles()")
 	public static function getFileListFromDir(inPath:String, fullPath:Bool = false):Array<String>
 	{
-		#if !js
-		throw "Not supported yet";
-		#end
-
 		var allfiles = Fs.readdirSync(Path.normalize(inPath));
 		var ret:Array<String> = [];
 		for (f in allfiles)
@@ -307,6 +331,7 @@ class FileTool
 				e.g. ['.cue','.mp3']
 	   @return
 	**/
+	@:deprecated("Use getFiles()")
 	public static function getFileListFromDirR(rootPath:String, ?ext:Array<String>):Array<String>
 	{
 		var res:Array<String> = [];
@@ -362,9 +387,6 @@ class FileTool
 	 **/
 	public static function getFileListFromWildcard(path:String):Array<String>
 	{
-		#if !js
-		throw "Not supported yet";
-		#end
 
 		// The returned object
 		var fileList:Array<String> = new Array();

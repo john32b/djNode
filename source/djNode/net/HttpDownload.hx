@@ -125,7 +125,7 @@ class HttpDownload
 				return end("Status Code : " + r.statusCode + ' : ' + r.statusMessage);
 			}
 			
-			trace('DL Connected ' + this);
+			//trace('DL Connected ' + this);
 			
 			try{
 				file = Fs.createWriteStream(filepath);
@@ -165,7 +165,7 @@ class HttpDownload
 	
 	function end(?f:String)
 	{
-		trace('Download End | $this');
+		//trace('Download End | $this');
 		if (file != null) file.end();
 		if (req != null) {
 			req.abort();

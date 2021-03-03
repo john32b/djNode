@@ -342,12 +342,6 @@ class BaseApp
 		var A = ARGS; var P = PROGRAM_INFO;
 		// > Quick Create blank space
 		var sp = (s)->StrT.rep(s, " ");
-		// >
-		var __getInfoRule = (rule:String) -> {
-			return (rule == "opt"?"is optional.":"is required.");
-		};
-
-
 		// > Description string, apply padding to linebreaks
 		// > Add the string (b) at the end of the FIRST line
 		var __fixDescFormat = (s:String, b:String) -> {
@@ -373,28 +367,27 @@ class BaseApp
 
 		// -- Print Input/Output Help --
 		// -----------------------------
-		var _pp = false; // Did it print anything
-		if (A.inputRule != "no") {
-			_pp = true;
-			T.ptag('<yellow> [input] <!>'); T.print(__getInfoRule(A.inputRule));
-			if (A.inputRule == "multi") T.ptag("<darkgray> (multiple supported)");
+		
+		var _prtIO = (r, lab, txt) ->  {
+			if (r == "no") return false;
+			T.ptag('<yellow> [$lab] <!> is ' + ((r == "opt")?"optional.":"required.")); 
+			if (r == "multi") T.ptag("<darkgray> (multiple supported)");
 			T.endl();
-			if (A.helpInput != null) {
-				A.helpInput = "<gray>\t " + ~/(\n)/g.replace(A.helpInput, "\n\t "); // append tab to newlines
-				T.ptag(A.helpInput).endl();
+			if (txt != null) {
+				txt = "<gray>\t " + ~/(\n)/g.replace(txt, "\n\t "); // append a tab (\t) to newlines (\n)
+				T.ptag(txt).endl();
 			}
+			return true;
+		}//---------------------------
+		
+		var a = _prtIO(A.inputRule, 'input', A.helpInput);
+		var b = _prtIO(A.outputRule, 'output', A.helpOutput);
+		// If it printed any of the 'input/output' help text, print a line afterwards
+		// DEV: I can't inline the check, because I need them both to be executed.
+		if(a || b) {
+			T.ptag(' <darkgray>' + StrT.line(LINE_LEN)).endl();
 		}
-		// --
-		if (A.outputRule != "no") {
-			_pp = true;
-			T.ptag('<yellow> [output] <!>'); T.print(__getInfoRule(A.outputRule)).endl();
-			if (A.helpOutput != null) {
-				A.helpOutput = "<gray>\t " + ~/(\n)/g.replace(A.helpOutput, "\n\t "); // append tab to newlines
-				T.ptag(A.helpOutput).endl();
-			}
-		}
-
-		if (_pp) T.ptag(' <darkgray>' + StrT.line(LINE_LEN)).endl();
+		
 		T.reset();
 
 		// -- Print <actions>
@@ -485,7 +478,8 @@ class BaseApp
 	//====================================================;
 
 	/**
-	 * Display a message and Exit immediately
+	 * Display a message and Exit immediately.
+	 * Message can have color tags like
 	 **/
 	public function exitError(text:String, showHelp:Bool = false):Void
 	{
@@ -528,7 +522,7 @@ class BaseApp
 	function waitKeyQuit():Void
 	{
 		T.ptag('\n<darkgray>Press any key to quit.<!>\n');
-		Keyboard.startCapture(true, function(e:String) { Sys.exit(0); });
+		Keyboard.startCapture(true, (e) -> Sys.exit(0) );
 	}//---------------------------------------------------;
 
 
@@ -578,8 +572,8 @@ typedef AppArguments =
 
 	supportWildcards:Bool,	// If true, <*.*> and <*.ext> will be resolved. Else ERROR
 
-	helpInput:String,		// Help text displayed for [input] on the the -help screen (optional)
-	helpOutput:String,		// Help text displayed for [input] on the the -help screen (optional)
+	helpInput:String,		// Help text displayed for [input] on the the -help screen. \n supported (optional)
+	helpOutput:String,		// Help text displayed for [input] on the the -help screen. \n supported (optional)
 	helpText:String,		// Text displayed below program usage on the -help screen (optional)
 
 							// ^DEV: Use "\n" for linebreaks for help texts
