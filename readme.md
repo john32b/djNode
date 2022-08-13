@@ -1,7 +1,9 @@
 # djNode
 
-**Version:** 0.6.1 *(2021_01),* **Author:** John32B, **License:** MIT  
+**Version:** 0.6.2 **Author:** John32B, **License:** MIT  
 **djNode** is a set of tools and helpers for **HAXE**; for creating **nodeJS CLI** applications.
+
+---
 
 ##  Features  :loudspeaker:
 
@@ -36,7 +38,7 @@ ARGS.Options = [
 - Running with a valid action and input file:
 ![](images/p_action.png)  
 
-- Handling passed`action` is automatic and easy
+- Handling passed `action` is automatic and easy
 
 ```haxe
 switch (argsAction)
@@ -136,16 +138,13 @@ switch (argsAction)
 
 
 
-### Notes :notebook: 
+## Notes :notebook: 
 
 This is mostly personal library that I have used in some projects and tools, like: 
 - cdcrush *(cd game compression)* https://github.com/john32b/cdcrush
 - romdj *(emulation Rom Builder)* https://github.com/john32b/romdj
+- winmt *(Windows 10 tweaks, service cleaner*) https://github.com/john32b/winmt
 - djTui *(NodeJS TUI interface library)* https://github.com/john32b/djTui
 - psxlauncher *(TUI based emulator launcher)* https://github.com/john32b/psxlauncher
 
 :warning: **WARNING** In case the Windows Default Command Line doesn't work use another console emulator like [cmder](http://cmder.net/) (*recommended*)
-
----
-
-<sup> thanks for checking this out</sup>

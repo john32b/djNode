@@ -41,4 +41,12 @@ class Registry
 		return (res != null);
 	}//---------------------------------------------------;
 	
+	
+	
+	public static function deleteKey(Key:String):Bool
+	{
+		var res = CLIApp.quickExecS('reg.exe DELETE $Key /f');
+		return (res != null);
+	}//---------------------------------------------------;
+	
 }

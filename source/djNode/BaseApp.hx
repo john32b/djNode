@@ -40,7 +40,7 @@ import djNode.tools.LOG;
 class BaseApp
 {
 	// djNode Version
-	public static inline var VERSION = "0.6.1";
+	public static inline var VERSION = "0.6.2";
 
 	// Instance
 	public static var app:BaseApp;
@@ -85,7 +85,7 @@ class BaseApp
 		inputRule:"no",
 		outputRule:"no",
 		requireAction:false,
-		supportWildcards:true,
+		resolveWildcards:true,
 		helpInput:null,
 		helpOutput:null,
 		helpText:null,
@@ -258,6 +258,7 @@ class BaseApp
 		// # Check Arguments :: ------
 
 		// - Get Input Wildcard
+		if (ARGS.resolveWildcards)
 		for(i in argsInput)
 		{
 			if (i.indexOf('*') >= 0 )
@@ -570,7 +571,7 @@ typedef AppArguments =
 
 	requireAction:Bool,		// An action IS required; either by implicit setting or by auto-guessed by file extension
 
-	supportWildcards:Bool,	// If true, <*.*> and <*.ext> will be resolved. Else ERROR
+	resolveWildcards:Bool,	// If true, wildcards for files {* | *.* | *.ext} will be resolved.
 
 	helpInput:String,		// Help text displayed for [input] on the the -help screen. \n supported (optional)
 	helpOutput:String,		// Help text displayed for [input] on the the -help screen. \n supported (optional)

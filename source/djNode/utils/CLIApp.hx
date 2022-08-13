@@ -47,6 +47,9 @@ class CLIApp
 
 	/** In case of error, read this */
 	public var ERROR(default, null):String;
+	
+	/** Last exit code */
+	public var EXITCODE(default, null):Int;
 
 	/** Called when program exits. (success) */
 	public var onClose:Bool->Void;
@@ -80,6 +83,8 @@ class CLIApp
 	public function start(?args:Array<String>, ?workingDir:String)
 	{
 		if (args == null) args = [];
+		
+		EXITCODE = -1;
 
 		log_last_call = '$exePath ' + args.join(' ');
 
@@ -111,6 +116,7 @@ class CLIApp
 		proc.once("close", function(code:Int, killsig:String) {
 			// NOTE: Do I really need to check for a Kill Signal
 			kill();	// Destroy other listeners that may fire upon other exit events
+			EXITCODE = code;
 			if (code != 0)
 			{
 				var r = FLAG_ERRORS_ON_STDERR?stdErrLog:stdOutLog;

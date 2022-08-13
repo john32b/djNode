@@ -4,7 +4,7 @@
 	"url" : "https://github.com/john32b/djNode",
 	"license": "MIT",
 	"tags": ["nodeJs"],
-	"version": "0.6.1",
+	"version": "0.6.2",
 	"classPath": "source/",
 	"releasenote": "",
 	"contributors": ["John32b"],
